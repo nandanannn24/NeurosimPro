@@ -161,7 +161,7 @@ Buka peramban dan akses `http://localhost:5173`.
 
 ## 📜 Deklarasi Penggunaan AI & Pihak Ketiga (*AI & Third-Party Declaration*)
 
-Sesuai dengan ketentuan *Hackathon INCEPTION 2026*, kami mendeklarasikan secara transparan seluruh layanan kecerdasan buatan (AI), pustaka, dan aset pihak ketiga yang digunakan dalam pengembangan **NEUROSIM**:
+Berikut ini merupakan deklarasi transparansi pustaka dan aset pihak ketiga yang digunakan dalam secara transparan seluruh layanan kecerdasan buatan (AI), pustaka, dan aset pihak ketiga yang digunakan dalam pengembangan **NEUROSIM**:
 
 ### 1. Layanan AI saat Aplikasi Berjalan (*Runtime AI Services*)
 - **Google Gemini API (`@google/genai`):** Digunakan sebagai mesin pemrosesan bahasa alami untuk dua fungsi terpisah: (1) menghasilkan respons dialog karakter dalam skenario kerja, dan (2) mengevaluasi transkrip percakapan pengguna berdasarkan rubrik 4 dimensi.

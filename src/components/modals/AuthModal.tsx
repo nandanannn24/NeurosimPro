@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, KeyRound, UserPlus, LogIn, ShieldCheck, LogOut, History, Award, X } from 'lucide-react';
+import { User, KeyRound, UserPlus, LogIn, ShieldCheck, LogOut, History, Award, X, Building2, Briefcase } from 'lucide-react';
 
 export interface UserProfile {
   id: number;
@@ -29,101 +29,63 @@ const AVATAR_OPTIONS = [
   { id: 'courier', name: 'Field Specialist', path: '/assets/characters/courier/standing/south.png' },
 ];
 
-export const AuthModal: React.FC<Props> = ({
-  isOpen,
-  onClose,
-  currentUser,
-  onLoginSuccess,
-  onLogout,
-  userHistory = [],
-  userAvatar,
-}) => {
-  const [tab, setTab] = useState<'login' | 'register'>('login');
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // Form States
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('Staff Pengembang');
-  const [department, setDepartment] = useState('Divisi Antarmuka & Frontend');
-  const [selectedAvatar, setSelectedAvatar] = useState('/assets/characters/resident/standing/south.png');
-
-  if (!isOpen) return null;
-
 interface LocalAccount {
   user: UserProfile;
   pass: string;
 }
 
-const FALLBACK_DEMO_USERS: Record<string, { pass: string[]; user: UserProfile }> = {
-  rifat: {
-    pass: ['rifat123', 'password123', 'demo123'],
-    user: {
-      id: 3,
-      username: 'rifat',
-      fullName: 'Rifat Abhista',
-      role: 'Backend & AI Architecture Lead',
-      department: 'Divisi Database & Gemini AI',
-      avatar: '/assets/characters/resident/standing/south.png',
-      reduceMotion: false,
-      highContrast: false,
-      textScale: 'normal',
-    },
-  },
-  rifat_lead: {
-    pass: ['password123', 'rifat123', 'demo123'],
+export const ENTERPRISE_DEMO_USERS: Record<string, { pass: string[]; user: UserProfile }> = {
+  admin: {
+    pass: ['admin123', 'demo123', 'password123'],
     user: {
       id: 1,
-      username: 'rifat_lead',
-      fullName: 'Rifat Abhista',
-      role: 'Backend & AI Architecture Lead',
-      department: 'Divisi Database & Gemini AI',
-      avatar: '/assets/characters/resident/standing/south.png',
+      username: 'admin',
+      fullName: 'Administrator NeuroSim Pro',
+      role: 'Super Administrator',
+      department: 'Enterprise Management',
+      avatar: '/assets/characters/office-worker/standing/south.png',
       reduceMotion: false,
       highContrast: false,
       textScale: 'normal',
     },
   },
-  baginda: {
-    pass: ['baginda123', 'demo123'],
+  manager: {
+    pass: ['manager123', 'demo123', 'password123'],
     user: {
       id: 2,
-      username: 'baginda',
-      fullName: 'Karyawan Baru',
-      role: 'Staff Pengembang Antarmuka & Aksesibilitas',
-      department: 'Divisi Frontend & UI/UX',
+      username: 'manager',
+      fullName: 'Operations Lead',
+      role: 'Manager / Team Leader',
+      department: 'Divisi Kolaborasi & Delivery',
       avatar: '/assets/characters/resident/standing/south.png',
       reduceMotion: false,
       highContrast: false,
       textScale: 'normal',
     },
   },
-  priyoga: {
-    pass: ['priyoga123', 'demo123'],
+  employee: {
+    pass: ['employee123', 'demo123', 'password123'],
+    user: {
+      id: 3,
+      username: 'employee',
+      fullName: 'Staff Pengembang Pro',
+      role: 'Employee / Member',
+      department: 'Divisi Antarmuka & Frontend',
+      avatar: '/assets/characters/resident/standing/south.png',
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
+  guest: {
+    pass: ['guest123', 'demo123', 'password123'],
     user: {
       id: 4,
-      username: 'priyoga',
-      fullName: 'Priyoga Listyo Ananda',
-      role: 'Game Engine & Physics Lead',
-      department: 'Divisi Simulasi & Phaser',
-      avatar: '/assets/characters/resident/standing/south.png',
-      reduceMotion: false,
-      highContrast: false,
-      textScale: 'normal',
-    },
-  },
-  admin: {
-    pass: ['admin123', 'demo123'],
-    user: {
-      id: 99,
-      username: 'admin',
-      fullName: 'Evaluator Juri Hackathon',
-      role: 'Dewan Juri & Penguji Sistem',
-      department: 'Inception 2026 Evaluation',
-      avatar: '/assets/characters/office-worker/standing/south.png',
+      username: 'guest',
+      fullName: 'Tamu Kolaborasi',
+      role: 'Guest / External Attendee',
+      department: 'External Stakeholder',
+      avatar: '/assets/characters/courier/standing/south.png',
       reduceMotion: false,
       highContrast: false,
       textScale: 'normal',
@@ -150,6 +112,30 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
   }
 }
 
+export const AuthModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  currentUser,
+  onLoginSuccess,
+  onLogout,
+  userHistory = [],
+  userAvatar,
+}) => {
+  const [tab, setTab] = useState<'login' | 'register'>('login');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Form States
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState('Employee / Member');
+  const [department, setDepartment] = useState('Divisi Antarmuka & Frontend');
+  const [selectedAvatar, setSelectedAvatar] = useState('/assets/characters/resident/standing/south.png');
+
+  if (!isOpen) return null;
+
   const handleLogin = async (e?: React.FormEvent, customUser?: string, customPass?: string) => {
     if (e) e.preventDefault();
     setErrorMessage(null);
@@ -171,7 +157,7 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
           data = await res.json();
         }
       } catch {
-        // Abaikan fetch error, beralih ke verifikasi lokal / demo
+        // Fallback jika API route hosting belum siap
       }
 
       if (data?.success && data?.user) {
@@ -184,8 +170,7 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
         return;
       }
 
-      // Verifikasi Sesi Mandiri / Offline:
-      // 1. Periksa akun yang didaftarkan di browser ini
+      // Verifikasi Sesi Mandiri / Demo Enterprise:
       const localAccounts = getLocalAccounts();
       const matchedLocal = localAccounts[u];
       if (matchedLocal) {
@@ -201,11 +186,10 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
         }
       }
 
-      // 2. Periksa akun tim / demo bawaan
-      const demoMatch = FALLBACK_DEMO_USERS[u];
+      const demoMatch = ENTERPRISE_DEMO_USERS[u];
       if (demoMatch) {
         if (demoMatch.pass.includes(p) || p === 'demo123') {
-          setSuccessMessage('Berhasil masuk (Sesi Terverifikasi)!');
+          setSuccessMessage('Berhasil masuk (Sesi Enterprise Terverifikasi)!');
           setTimeout(() => {
             onLoginSuccess(demoMatch.user, []);
             onClose();
@@ -216,9 +200,8 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
         }
       }
 
-      // 3. Username belum pernah didaftarkan
       throw new Error(
-        `Akun "${u}" belum ditemukan. Silakan klik tab "Buat ID Baru" untuk mendaftar, atau gunakan tombol "Tamu Juri (Instan)" di bawah.`
+        `Akun "${u}" belum ditemukan. Silakan klik tab "Daftar ID Baru" untuk mendaftar, atau gunakan Masuk Cepat Demo di bawah.`
       );
     } catch (err: any) {
       setErrorMessage(err.message || 'Terjadi kesalahan saat login.');
@@ -271,11 +254,9 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
       }
 
       const finalUser = (data?.success && data?.user) ? data.user : localUser;
-
-      // Selalu simpan ke browser localStorage agar pengguna dapat login kembali berulang kali
       saveLocalAccount(cleanUser, cleanPass, finalUser);
 
-      setSuccessMessage('ID Karyawan berhasil diterbitkan! Anda dapat login kembali kapan saja.');
+      setSuccessMessage('ID Karyawan NeuroSim Pro berhasil diterbitkan!');
       setTimeout(() => {
         onLoginSuccess(finalUser, []);
         onClose();
@@ -292,250 +273,160 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
     }
   };
 
-
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-ink/60 backdrop-blur-xs select-none"
     >
-      <div className="w-full max-w-md bg-cream border-4 border-teal rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 my-auto">
+      <div className="relative w-full max-w-md bg-cream border-2 border-muted rounded-xl shadow-2xl overflow-hidden flex flex-col text-ink max-h-[92vh]">
         {/* Header Modal */}
-        <div className="flex items-center justify-between px-4 py-3 bg-teal text-soft">
+        <div className="flex items-center justify-between px-5 py-3.5 bg-sand/60 border-b border-[#d1c7b5]">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-sand" />
-            <h2 id="auth-modal-title" className="font-bold text-sm sm:text-base font-serif">
-              {currentUser ? 'Kartu ID Karyawan' : 'Portal Masuk Kantor Virtual'}
-            </h2>
+            <div className="w-7 h-7 rounded bg-teal/15 flex items-center justify-center text-teal">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 id="auth-modal-title" className="text-sm font-bold text-ink leading-tight font-serif">
+                {currentUser ? 'Profil Akun Karyawan' : 'Autentikasi NeuroSim Pro'}
+              </h2>
+              <p className="text-[10px] text-ink-muted leading-tight">
+                {currentUser ? 'Manajemen Sesi & Riwayat Akses' : 'Masuk atau terbitkan akun kerja'}
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup jendela"
-            className="w-7 h-7 rounded hover:bg-black/20 flex items-center justify-center transition-colors text-soft"
+            className="p-1 rounded text-ink-muted hover:text-ink hover:bg-parchment transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Jika Sudah Login: Tampilkan Kartu Profil & Riwayat MySQL */}
-        {currentUser ? (
-          <div className="p-4 sm:p-5 space-y-4">
-            {/* ID Card Visual */}
-            <div className="p-4 bg-parchment border-2 border-teal/40 rounded-lg shadow-sm flex items-center gap-4">
-              <div className="w-16 h-16 rounded border-2 border-teal overflow-hidden bg-sand flex-shrink-0">
-                <img
-                  src={userAvatar || currentUser?.avatar || '/assets/characters/resident/standing/south.png'}
-                  alt={currentUser?.fullName || currentUser?.username || 'Pegawai'}
-                  className="w-full h-full object-contain scale-[1.35] origin-center pixelated"
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-teal text-soft uppercase tracking-wider">
-                    ID #{currentUser.id}
-                  </span>
-                  <span className="text-xs text-ink-muted">@{currentUser.username}</span>
-                </div>
-                <h3 className="font-bold text-base text-ink truncate mt-0.5">
-                  {currentUser?.fullName || currentUser?.username || 'Pegawai'}
-                </h3>
-                <p className="text-xs text-teal font-medium truncate">{currentUser.role}</p>
-                <p className="text-[11px] text-ink-muted truncate">{currentUser.department}</p>
-              </div>
+        {/* Modal Body */}
+        <div className="p-5 overflow-y-auto space-y-4">
+          {/* Feedback Messages */}
+          {errorMessage && (
+            <div className="p-2.5 rounded-lg bg-brick/10 border border-brick/30 text-brick text-xs flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-brick flex-shrink-0" />
+              <span>{errorMessage}</span>
             </div>
+          )}
+          {successMessage && (
+            <div className="p-2.5 rounded-lg bg-teal/10 border border-teal/30 text-teal text-xs flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-teal flex-shrink-0" />
+              <span>{successMessage}</span>
+            </div>
+          )}
 
-            {/* Riwayat Latihan di MySQL */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
-                  <History className="w-3.5 h-3.5 text-teal" />
-                  Riwayat Sesi Simulasi & Evaluasi AI:
-                </h4>
-                <span className="text-[11px] text-ink-muted">
-                  {userHistory.length} Sesi Terdata
-                </span>
+          {/* Active User Session View */}
+          {currentUser ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-sand/50 border border-[#d1c7b5] flex items-center gap-3.5">
+                <div className="w-14 h-14 rounded-full bg-cream border-2 border-teal/40 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-xs">
+                  <img
+                    src={currentUser.avatar || userAvatar || '/assets/characters/resident/standing/south.png'}
+                    alt={currentUser.fullName}
+                    className="w-full h-full object-contain scale-[1.3] pixelated"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-bold text-ink block truncate font-serif">
+                    {currentUser.fullName}
+                  </span>
+                  <span className="text-[11px] text-teal font-semibold block truncate">
+                    @{currentUser.username} • {currentUser.role}
+                  </span>
+                  <span className="text-[10px] text-ink-muted block truncate mt-0.5">
+                    {currentUser.department}
+                  </span>
+                </div>
               </div>
 
-              {userHistory.length === 0 ? (
-                <div className="p-3 bg-sand/50 rounded border border-[#d1c7b5] text-center text-xs text-ink-muted">
-                  Belum ada riwayat simulasi tersimpan. Selesaikan sesi latihan mandiri untuk merekam evaluasi kompetensi.
+              {/* Riwayat Sesi Kerja */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-ink">
+                  <span className="flex items-center gap-1.5">
+                    <History className="w-3.5 h-3.5 text-teal" />
+                    <span>Riwayat Sesi Terakhir</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-ink-muted">{userHistory.length} Sesi</span>
                 </div>
-              ) : (
-                <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 text-xs">
-                  {userHistory.map((h, i) => (
-                    <div
-                      key={h.id || i}
-                      className="p-2 bg-parchment border border-[#d1c7b5] rounded flex items-center justify-between"
-                    >
-                      <div>
-                        <span className="font-semibold text-ink block capitalize">
-                          {h.scenario_id ? String(h.scenario_id).replace('-', ' ') : 'Skenario'}
-                        </span>
-                        <span className="text-[10px] text-ink-muted block">
-                          Level {h.level ?? 2} · {h.created_at ? new Date(h.created_at).toLocaleDateString('id-ID') : '-'}
+
+                {userHistory.length === 0 ? (
+                  <div className="p-3 rounded-lg bg-parchment/60 border border-[#d1c7b5] text-center text-xs text-ink-muted">
+                    Belum ada riwayat sesi. Jelajahi virtual office atau ikuti simulasi di Training Hub.
+                  </div>
+                ) : (
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                    {userHistory.slice(0, 5).map((h, i) => (
+                      <div
+                        key={h.id || i}
+                        className="p-2 rounded bg-cream border border-[#d1c7b5] text-[11px] flex items-center justify-between"
+                      >
+                        <div>
+                          <span className="font-semibold text-ink block">{h.user_goal || h.scenario_id || 'Sesi Kolaborasi'}</span>
+                          <span className="text-[10px] text-ink-muted">{new Date(h.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal/15 text-teal">
+                          Level {h.rekomendasi_level || 2}
                         </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-teal text-soft">
-                        Level: {h.rekomendasi_level}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* Logout Button */}
-            <div className="pt-2 border-t border-[#d1c7b5] flex justify-end gap-2">
               <button
                 type="button"
                 onClick={onLogout}
-                className="px-3.5 py-1.5 rounded bg-brick text-soft text-xs font-semibold hover:bg-brick/90 flex items-center gap-1.5 transition-colors shadow-xs"
+                className="w-full py-2 px-3 rounded-lg bg-brick/10 hover:bg-brick/20 border border-brick/30 text-brick text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                Keluar (Clock Out)
+                <span>Keluar dari Akun (Logout)</span>
               </button>
             </div>
-          </div>
-        ) : (
-          /* Jika Belum Login: Tampilkan Tab Login / Register */
-          <div className="p-4 sm:p-5 space-y-4">
-            {/* Tab Switcher */}
-            <div className="flex rounded bg-sand p-1 border border-muted/30">
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('login');
-                  setErrorMessage(null);
-                  setSuccessMessage(null);
-                }}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded flex items-center justify-center gap-1.5 transition-colors ${
-                  tab === 'login' ? 'bg-teal text-soft shadow-xs' : 'text-ink hover:text-black'
-                }`}
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                Masuk Kantor
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('register');
-                  setErrorMessage(null);
-                  setSuccessMessage(null);
-                }}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded flex items-center justify-center gap-1.5 transition-colors ${
-                  tab === 'register' ? 'bg-teal text-soft shadow-xs' : 'text-ink hover:text-black'
-                }`}
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                Buat ID Baru
-              </button>
-            </div>
-
-            {/* Feedback Messages */}
-            {errorMessage && (
-              <div className="p-2.5 rounded bg-brick/10 border border-brick/40 text-brick text-xs">
-                {errorMessage}
-              </div>
-            )}
-            {successMessage && (
-              <div className="p-2.5 rounded bg-sage/20 border border-sage/40 text-sage text-xs font-semibold">
-                {successMessage}
-              </div>
-            )}
-
-            {/* Form Login */}
-            {tab === 'login' && (
-              <form onSubmit={(e) => handleLogin(e)} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">Username:</label>
-                  <input
-                    type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="misal: rifat_lead"
-                    className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">Kata Sandi:</label>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
-                  />
-                </div>
-
+          ) : (
+            /* Login / Register Tabbed View */
+            <div className="space-y-4">
+              {/* Tab Selector */}
+              <div className="flex bg-sand/70 p-1 rounded-lg border border-[#d1c7b5]">
                 <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-2 bg-teal text-soft rounded text-xs font-bold hover:bg-teal-dark transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-xs mt-2"
+                  type="button"
+                  onClick={() => setTab('login')}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    tab === 'login' ? 'bg-cream text-ink shadow-xs' : 'text-ink-muted hover:text-ink'
+                  }`}
                 >
                   <LogIn className="w-3.5 h-3.5" />
-                  {isLoading ? 'Memverifikasi...' : 'Masuk ke Ruang Kerja'}
+                  <span>Masuk ID</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setTab('register')}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    tab === 'register' ? 'bg-cream text-ink shadow-xs' : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Daftar ID Baru</span>
+                </button>
+              </div>
 
-                {/* Quick Access untuk Juri Hackathon */}
-                <div className="pt-3 border-t border-[#d1c7b5] space-y-1.5">
-                  <p className="text-[11px] text-ink-muted text-center font-medium">
-                    ⚡ Masuk Cepat untuk Juri:
-                  </p>
+              {/* Form Login */}
+              {tab === 'login' && (
+                <form onSubmit={(e) => handleLogin(e)} className="space-y-3">
                   <div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Guest mode
-                        onLoginSuccess({
-                          id: 999,
-                          username: 'tamu_juri',
-                          fullName: 'Dewan Juri INCEPTION 2026',
-                          role: 'Juri & Penguji Inklusivitas',
-                          department: 'Evaluasi Kompetisi',
-                          avatar: '/assets/characters/courier/standing/south.png',
-                          reduceMotion: false,
-                          highContrast: false,
-                          textScale: 'normal',
-                        }, []);
-                        onClose();
-                      }}
-                      className="w-full py-1.5 px-3 rounded-lg bg-teal/15 hover:bg-teal/25 border border-teal text-xs font-semibold text-teal transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      <span>Tamu Juri (Instan)</span>
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
-
-            {/* Form Register */}
-            {tab === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-2.5">
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">Nama Lengkap:</label>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="misal: Rifat Abhista"
-                    className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-ink mb-1">Username:</label>
+                    <label className="block text-xs font-semibold text-ink mb-1">Username / Email:</label>
                     <input
                       type="text"
                       required
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="rifat"
-                      className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
+                      placeholder="misal: admin atau employee"
+                      className="w-full px-3 py-2 bg-parchment border border-muted/50 rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
                     />
                   </div>
                   <div>
@@ -545,74 +436,163 @@ function saveLocalAccount(username: string, pass: string, user: UserProfile) {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="min 4 huruf"
-                      className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
+                      placeholder="Masukkan kata sandi..."
+                      className="w-full px-3 py-2 bg-parchment border border-muted/50 rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-ink mb-1">Peran Jabatan:</label>
-                    <input
-                      type="text"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      placeholder="Junior Developer"
-                      className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-ink mb-1">Departemen:</label>
-                    <input
-                      type="text"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      placeholder="Divisi Antarmuka"
-                      className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
-                    />
-                  </div>
-                </div>
 
-                {/* Pemilihan Avatar Pixel Art */}
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">Pilih Avatar Pegawai:</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {AVATAR_OPTIONS.map((av) => (
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-2.5 px-4 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isLoading ? 'Memverifikasi...' : 'Masuk ke Platform'}
+                  </button>
+
+                  {/* Masuk Cepat Demo Peran Enterprise */}
+                  <div className="pt-3 border-t border-[#d1c7b5] space-y-2">
+                    <p className="text-[11px] text-ink-muted text-center font-medium">
+                      ⚡ Masuk Cepat Demo Peran Enterprise:
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
                       <button
-                        key={av.id}
                         type="button"
-                        onClick={() => setSelectedAvatar(av.path)}
-                        className={`p-1.5 rounded border text-center flex flex-col items-center gap-1 transition-colors ${
-                          selectedAvatar === av.path
-                            ? 'border-teal bg-teal/15 shadow-xs font-bold'
-                            : 'border-[#d1c7b5] bg-parchment hover:bg-sand'
-                        }`}
+                        onClick={() => handleLogin(undefined, 'admin', 'admin123')}
+                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                       >
-                        <div className="w-8 h-8 rounded overflow-hidden">
-                          <img
-                            src={av.path}
-                            alt={av.name}
-                            className="w-full h-full object-contain scale-[1.9] pixelated"
-                          />
-                        </div>
-                        <span className="text-[10px] leading-tight text-ink">{av.name}</span>
+                        <ShieldCheck className="w-3 h-3 text-amber-600" />
+                        <span>Super Admin</span>
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => handleLogin(undefined, 'manager', 'manager123')}
+                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                      >
+                        <Briefcase className="w-3 h-3 text-teal" />
+                        <span>Manager Tim</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLogin(undefined, 'employee', 'employee123')}
+                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                      >
+                        <User className="w-3 h-3 text-blue-600" />
+                        <span>Employee</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLogin(undefined, 'guest', 'guest123')}
+                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                      >
+                        <Building2 className="w-3 h-3 text-ink-muted" />
+                        <span>Tamu Eksternal</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </form>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-2 bg-teal text-soft rounded text-xs font-bold hover:bg-teal-dark transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-xs mt-2"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  {isLoading ? 'Mendaftarkan...' : 'Terbitkan ID Karyawan'}
-                </button>
-              </form>
-            )}
-          </div>
-        )}
+              {/* Form Register */}
+              {tab === 'register' && (
+                <form onSubmit={handleRegister} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-ink mb-1">Nama Lengkap:</label>
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="misal: Alex Pratama"
+                      className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-ink mb-1">Username:</label>
+                      <input
+                        type="text"
+                        required
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="alex"
+                        className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-ink mb-1">Kata Sandi:</label>
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="min 6 karakter"
+                        className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-ink mb-1">Peran Jabatan:</label>
+                      <input
+                        type="text"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        placeholder="Frontend Engineer"
+                        className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-ink mb-1">Departemen:</label>
+                      <input
+                        type="text"
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        placeholder="Product & Engineering"
+                        className="w-full px-3 py-1.5 bg-parchment border border-muted/50 rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-teal"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Avatar Picker */}
+                  <div>
+                    <label className="block text-xs font-semibold text-ink mb-1">Pilih Avatar:</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {AVATAR_OPTIONS.map((av) => (
+                        <button
+                          key={av.id}
+                          type="button"
+                          onClick={() => setSelectedAvatar(av.path)}
+                          className={`p-1.5 rounded-lg border text-center flex flex-col items-center gap-1 transition-colors cursor-pointer ${
+                            selectedAvatar === av.path
+                              ? 'border-teal bg-teal/15 shadow-xs font-bold'
+                              : 'border-[#d1c7b5] bg-parchment hover:bg-sand'
+                          }`}
+                        >
+                          <div className="w-8 h-8 rounded overflow-hidden">
+                            <img
+                              src={av.path}
+                              alt={av.name}
+                              className="w-full h-full object-contain scale-[1.9] pixelated"
+                            />
+                          </div>
+                          <span className="text-[10px] leading-tight text-ink">{av.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-2.5 px-4 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isLoading ? 'Menerbitkan ID...' : 'Daftar ID Karyawan Baru'}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

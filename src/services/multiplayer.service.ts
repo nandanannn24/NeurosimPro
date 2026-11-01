@@ -297,6 +297,21 @@ class MultiplayerService {
     EventBus.emit(GAME_EVENTS.ONLINE_PLAYERS_UPDATED, []);
   }
 
+  public sendCustomEvent(eventName: string, data: any): void {
+    if (!this.socket || !this.isConnected) return;
+    this.socket.emit(eventName, data);
+  }
+
+  public onCustomEvent(eventName: string, handler: (data: any) => void): () => void {
+    if (!this.socket) {
+      this.connect();
+    }
+    this.socket?.on(eventName, handler);
+    return () => {
+      this.socket?.off(eventName, handler);
+    };
+  }
+
   public getOnlinePlayers(): PlayerPresence[] {
     return Array.from(this.onlinePlayers.values());
   }

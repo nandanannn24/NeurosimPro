@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, MessageSquare, MapPin, Building2, Copy, Check, Radio, Settings, Wifi, WifiOff } from 'lucide-react';
+import { X, MapPin, Building2, Copy, Check, Radio, Settings, Users, Wifi } from 'lucide-react';
 import { OfficeRoom } from '../../types/room';
 import { EventBus, GAME_EVENTS } from '../../game/EventBus';
 import { multiplayerService } from '../../services/multiplayer.service';
@@ -10,8 +10,7 @@ export interface Participant {
   role: string;
   zone: string;
   status: 'online' | 'busy' | 'pantry';
-  isNPC: boolean;
-  scenarioId?: string;
+  isNPC?: boolean;
   portrait: string;
 }
 
@@ -19,7 +18,6 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   participants: Participant[];
-  onStartScenario: (scenarioId: string) => void;
   currentRoom?: OfficeRoom;
   onOpenRoomModal: () => void;
 }
@@ -28,7 +26,6 @@ export const ParticipantsDrawer: React.FC<Props> = ({
   isOpen,
   onClose,
   participants,
-  onStartScenario,
   currentRoom,
   onOpenRoomModal,
 }) => {
@@ -65,16 +62,12 @@ export const ParticipantsDrawer: React.FC<Props> = ({
     setIsConfigOpen(false);
   };
 
-  // WAJIB: Panggil semua hooks sebelum early return agar tidak terjadi "Rendered more hooks"
-  const simulationNpcs = useMemo(() => participants.filter((p) => p.isNPC), [participants]);
   const colleagues = useMemo(() => participants.filter((p) => !p.isNPC), [participants]);
 
-  const roomName = currentRoom?.name || 'Kantor Pusat NeuroSim';
+  const roomName = currentRoom?.name || 'Kantor Pusat NeuroSim Pro';
   const roomCode = currentRoom?.code || 'NEURO-HQ-88';
   const capacity = currentRoom?.capacity ?? 25;
-  const humanJoinedCount = Math.max(1, colleagues.length);
-  const activeNpcCount = simulationNpcs.length;
-  const totalInOffice = humanJoinedCount + activeNpcCount;
+  const humanJoinedCount = colleagues.length;
 
   const getDynamicShareUrl = (): string => {
     if (typeof window !== 'undefined') {
@@ -93,7 +86,6 @@ export const ParticipantsDrawer: React.FC<Props> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Early return setelah seluruh hooks selesai dipanggil
   if (!isOpen) return null;
 
   return (
@@ -105,7 +97,7 @@ export const ParticipantsDrawer: React.FC<Props> = ({
       <div className="flex items-center justify-between px-4 py-3 bg-teal text-soft border-b border-teal-dark">
         <div>
           <h2 className="font-bold text-sm">Rekan di Kantor</h2>
-          <p className="text-[11px] text-soft/80">{totalInOffice} orang di kantor virtual ({humanJoinedCount} Rekan + {activeNpcCount} Karakter AI)</p>
+          <p className="text-[11px] text-soft/80">{humanJoinedCount} anggota tim aktif di virtual office</p>
         </div>
         <button
           type="button"
@@ -182,7 +174,7 @@ export const ParticipantsDrawer: React.FC<Props> = ({
           <div className="flex items-center justify-between font-bold">
             <span className="flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full ${isSocketConnected ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
-              <span>{isSocketConnected ? 'Realtime Multiplayer: Aktif' : 'Realtime Multiplayer: Offline'}</span>
+              <span>{isSocketConnected ? 'Realtime Multiplayer: Aktif' : 'Realtime Multiplayer: Standalone'}</span>
             </span>
             <button
               type="button"
@@ -194,182 +186,114 @@ export const ParticipantsDrawer: React.FC<Props> = ({
             </button>
           </div>
 
-          {!isSocketConnected && (
-            <p className="text-[9.5px] text-amber-800/90 mt-1 leading-snug">
-              Hosting serverless Vercel tidak menjalankan WebSocket permanen. Masukkan URL server realtime untuk terhubung dengan teman.
-            </p>
-          )}
-
+          {/* Config URL drawer */}
           {isConfigOpen && (
-            <form onSubmit={handleSaveSocketUrl} className="mt-2 space-y-1.5 pt-1.5 border-t border-amber-200">
-              <label className="block text-[10px] font-bold text-ink">
-                URL Server Socket.IO:
+            <form onSubmit={handleSaveSocketUrl} className="mt-2 pt-2 border-t border-[#d1c7b5]/60 space-y-1.5">
+              <label className="block text-[10px] text-ink-muted">
+                URL WebSocket Realtime Server:
               </label>
               <input
                 type="text"
                 value={customSocketUrl}
                 onChange={(e) => setCustomSocketUrl(e.target.value)}
-                placeholder="misal: https://neurosim-socket.loca.lt"
-                className="w-full px-2 py-1 text-[10.5px] rounded bg-white border border-amber-300 font-mono text-ink placeholder:text-ink-muted/50"
+                placeholder={socketUrl || 'http://localhost:3001'}
+                className="w-full px-2 py-1 text-xs border border-muted/40 rounded bg-cream text-ink focus:outline-teal font-mono"
               />
-              <div className="flex items-center gap-1.5 pt-0.5">
+              <div className="flex justify-end gap-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsConfigOpen(false)}
+                  className="px-2 py-0.5 text-[10px] rounded bg-sand hover:bg-parchment text-ink"
+                >
+                  Batal
+                </button>
                 <button
                   type="submit"
-                  className="flex-1 py-1 text-[10.5px] font-bold rounded bg-teal text-soft hover:bg-teal-dark transition-colors cursor-pointer"
+                  className="px-2 py-0.5 text-[10px] rounded bg-teal text-soft font-bold hover:bg-teal-dark"
                 >
-                  Hubungkan
+                  Simpan & Hubungkan
                 </button>
-                {customSocketUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomSocketUrl('');
-                      localStorage.removeItem('neurosim_socket_url');
-                      multiplayerService.reconnect();
-                      setIsConfigOpen(false);
-                    }}
-                    className="py-1 px-2 text-[10px] font-medium rounded bg-cream border border-muted/40 text-ink-muted hover:bg-parchment transition-colors cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                )}
               </div>
             </form>
           )}
         </div>
       </div>
 
-      {/* Participants List: Simulation NPCs at the top, Colleagues below */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-parchment/60">
-        {/* Group 1: Target Skenario Simulasi Komunikasi (NPCs at Top) */}
-        {simulationNpcs.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10.5px] font-bold text-teal uppercase tracking-wider flex items-center gap-1">
-                <span>🎯</span> Target Skenario Simulasi
-              </span>
-              <span className="text-[10px] bg-teal/15 text-teal font-bold px-1.5 py-0.5 rounded">
-                {simulationNpcs.length} Karakter AI
-              </span>
-            </div>
+      {/* Participants List */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-parchment/60">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10.5px] font-bold text-ink-muted uppercase tracking-wider flex items-center gap-1">
+            <Users className="w-3 h-3 text-teal" />
+            <span>Anggota Tim Online</span>
+          </span>
+          <span className="text-[10px] bg-sand text-ink font-semibold px-1.5 py-0.5 rounded">
+            {colleagues.length} Rekan
+          </span>
+        </div>
 
-            <div className="space-y-2">
-              {simulationNpcs.map((person) => (
-                <div
-                  key={person.id}
-                  className="p-2.5 rounded border border-sand bg-cream hover:border-teal/50 transition-colors flex items-center justify-between gap-2 shadow-2xs"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="relative w-8 h-8 rounded border border-teal overflow-hidden bg-parchment flex-shrink-0">
-                      <img
-                        src={person.portrait}
-                        alt={person.name}
-                        className="w-full h-full object-contain scale-[1.35] origin-center pixelated"
-                      />
-                      <span
-                        className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
-                          person.status === 'online'
-                            ? 'bg-sage'
-                            : person.status === 'busy'
-                            ? 'bg-brick'
-                            : 'bg-ochre'
-                        }`}
-                      />
-                    </div>
-
-                    <div className="min-w-0">
-                      <span className="font-bold text-xs text-ink truncate block">
-                        {person.name}
-                      </span>
-                      <span className="text-[10px] text-ink-muted truncate block">
-                        {person.role}
-                      </span>
-                      <div className="flex items-center gap-1 text-[10px] text-teal mt-0.5">
-                        <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                        <span className="truncate">{person.zone}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {person.scenarioId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onStartScenario(person.scenarioId!);
-                        onClose();
-                      }}
-                      title={`Mulai simulasi komunikasi dengan ${person.name}`}
-                      className="px-2.5 py-1 text-[11px] font-semibold bg-teal text-soft rounded hover:bg-teal-dark transition-colors flex items-center gap-1 flex-shrink-0 cursor-pointer shadow-2xs"
-                    >
-                      <MessageSquare className="w-3 h-3" />
-                      <span>Simulasi</span>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
+        {colleagues.length === 0 ? (
+          <div className="p-4 text-center text-xs text-ink-muted bg-cream rounded-lg border border-sand">
+            Belum ada rekan lain yang terhubung. Bagikan tautan ruangan untuk mengundang tim Anda!
           </div>
-        )}
+        ) : (
+          <div className="space-y-2">
+            {colleagues.map((person) => (
+              <div
+                key={person.id}
+                className="p-2.5 rounded border border-sand bg-cream hover:border-teal/50 transition-colors flex items-center justify-between gap-2 shadow-2xs"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="relative w-8 h-8 rounded border border-teal overflow-hidden bg-parchment flex-shrink-0">
+                    <img
+                      src={person.portrait}
+                      alt={person.name}
+                      className="w-full h-full object-contain scale-[1.35] origin-center pixelated"
+                    />
+                    <span
+                      className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
+                        person.status === 'online'
+                          ? 'bg-sage'
+                          : person.status === 'busy'
+                          ? 'bg-brick'
+                          : 'bg-ochre'
+                      }`}
+                    />
+                  </div>
 
-        {/* Group 2: Rekan Kerja di Ruangan */}
-        {colleagues.length > 0 && (
-          <div className="space-y-1.5 pt-1">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10.5px] font-bold text-ink-muted uppercase tracking-wider flex items-center gap-1">
-                <span>👥</span> Rekan Tim di Kantor
-              </span>
-              <span className="text-[10px] bg-sand text-ink font-semibold px-1.5 py-0.5 rounded">
-                {colleagues.length} Orang
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {colleagues.map((person) => (
-                <div
-                  key={person.id}
-                  className="p-2.5 rounded border border-sand bg-cream hover:border-teal/50 transition-colors flex items-center justify-between gap-2"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="relative w-8 h-8 rounded border border-teal overflow-hidden bg-parchment flex-shrink-0">
-                      <img
-                        src={person.portrait}
-                        alt={person.name}
-                        className="w-full h-full object-contain scale-[1.35] origin-center pixelated"
-                      />
-                      <span
-                        className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
-                          person.status === 'online'
-                            ? 'bg-sage'
-                            : person.status === 'busy'
-                            ? 'bg-brick'
-                            : 'bg-ochre'
-                        }`}
-                      />
-                    </div>
-
-                    <div className="min-w-0">
-                      <span className="font-bold text-xs text-ink truncate block">
-                        {person.name}
-                      </span>
-                      <span className="text-[10px] text-ink-muted truncate block">
-                        {person.role}
-                      </span>
-                      <div className="flex items-center gap-1 text-[10px] text-teal mt-0.5">
-                        <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                        <span className="truncate">{person.zone}</span>
-                      </div>
+                  <div className="min-w-0">
+                    <span className="font-bold text-xs text-ink truncate block">
+                      {person.name}
+                    </span>
+                    <span className="text-[10px] text-ink-muted truncate block">
+                      {person.role}
+                    </span>
+                    <div className="flex items-center gap-1 text-[10px] text-teal mt-0.5">
+                      <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
+                      <span className="truncate">{person.zone}</span>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-medium border ${
+                    person.status === 'online'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : person.status === 'busy'
+                      ? 'bg-rose-50 text-rose-800 border-rose-200'
+                      : 'bg-amber-50 text-amber-800 border-amber-200'
+                  }`}>
+                    {person.status === 'online' ? 'Tersedia' : person.status === 'busy' ? 'Fokus' : 'Pantry'}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
       {/* Drawer Footer */}
       <div className="p-3 bg-cream border-t border-sand text-xs text-ink-muted text-center">
-        Dekati karakter di kantor 2D untuk memulai latihan interaksi.
+        Dekati kursi mana pun dan tekan Space atau E untuk duduk dan bekerja bersama tim.
       </div>
     </aside>
   );

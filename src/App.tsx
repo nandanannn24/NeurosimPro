@@ -30,50 +30,21 @@ import { GatherDock, UserStatus } from './components/gather/GatherDock';
 import { ParticipantsDrawer, Participant } from './components/gather/ParticipantsDrawer';
 import { OfficeChatDrawer, OfficeChatMessage } from './components/gather/OfficeChatDrawer';
 import { WebcamWidget } from './components/gather/WebcamWidget';
-import { GoogleMeetWidget } from './components/gather/GoogleMeetWidget';
+import { MeetingLobbyModal } from './components/meeting/MeetingLobbyModal';
+import { VideoConferenceModal } from './components/meeting/VideoConferenceModal';
+import { meetingService } from './services/meeting.service';
+import { MeetingSession } from './types/meeting';
 import { ScreenShareWidget } from './components/gather/ScreenShareWidget';
 import { multiplayerService } from './services/multiplayer.service';
 import { PlayerPresence, PlayerChatPacket } from './types/multiplayer';
 
 export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation';
 
-const NPC_PARTICIPANTS: Participant[] = [
-  {
-    id: 'npc-rina',
-    name: 'Bu Rina',
-    role: 'Atasan Tim Antarmuka',
-    zone: 'Ruang Eksekutif & Manajemen',
-    status: 'busy',
-    isNPC: true,
-    scenarioId: 'skenario-1',
-    portrait: '/assets/characters/office-worker/standing/south.png',
-  },
-  {
-    id: 'npc-dimas',
-    name: 'Dimas',
-    role: 'Rekan Kerja Senior',
-    zone: 'Pantry & Dapur',
-    status: 'pantry',
-    isNPC: true,
-    scenarioId: 'skenario-2',
-    portrait: '/assets/characters/resident/standing/south.png',
-  },
-  {
-    id: 'npc-hendra',
-    name: 'Pak Hendra',
-    role: 'Klien Pemilik Proyek',
-    zone: 'Ruang Rapat & Konferensi',
-    status: 'online',
-    isNPC: true,
-    scenarioId: 'skenario-3',
-    portrait: '/assets/characters/courier/standing/south.png',
-  },
-];
 
 // Obrolan kantor dimulai dalam kondisi kosong bersih (dinamis)
 const getInitialChatMessages = (): OfficeChatMessage[] => [];
 
-const getUserDisplayName = (user: UserProfile | null, fallback = 'Rifat'): string => {
+const getUserDisplayName = (user: UserProfile | null, fallback = 'Pengguna'): string => {
   if (!user) return fallback;
   if (user.fullName && typeof user.fullName === 'string' && user.fullName.trim().length > 0) {
     const first = user.fullName.trim().split(' ')[0];
@@ -95,6 +66,12 @@ export const App: React.FC = () => {
   const [isTodoListOpen, setIsTodoListOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+
+  // Video Conference & Breakout Room State
+  const [isMeetingLobbyOpen, setIsMeetingLobbyOpen] = useState(false);
+  const [isVideoConferenceOpen, setIsVideoConferenceOpen] = useState(false);
+  const [activeMeetingSession, setActiveMeetingSession] = useState<MeetingSession | null>(null);
+
 
   // Online Multiplayer Room State (Dibersihkan agar count selalu sinkron dan dinamis)
   const [availableRooms, setAvailableRooms] = useState<OfficeRoom[]>(() => {
@@ -138,8 +115,8 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.fullName === 'string' && parsed.fullName.includes('Baginda')) {
-          parsed.fullName = 'Rifat Abhista';
-          parsed.username = 'rifat';
+          parsed.fullName = 'Pengguna NeuroSim';
+          parsed.username = 'pengguna';
           localStorage.setItem('neurosim_current_user', JSON.stringify(parsed));
         }
         return parsed;
@@ -254,7 +231,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.name === 'string' && (parsed.name.includes('Baginda') || !parsed.name.trim())) {
-          parsed.name = 'Rifat Abhista';
+          parsed.name = 'Karyawan NeuroSim';
           localStorage.setItem('neurosim_character_config', JSON.stringify(parsed));
         }
         return parsed;
@@ -286,8 +263,48 @@ export const App: React.FC = () => {
       portrait: p.avatar || `/assets/characters/${p.archetype || 'resident'}/standing/south.png`,
     }));
 
-    return [localPart, ...remotes, ...NPC_PARTICIPANTS];
+    return [localPart, ...remotes];
   }, [currentUser, userStatus, characterConfig.archetype, onlineRemotePlayers, currentZoneName]);
+
+  const handleOpenVideoConference = useCallback(() => {
+    let meeting = meetingService.getMeeting();
+    if (!meeting) {
+      meeting = meetingService.createMeeting(
+        {
+          title: `Konferensi ${currentRoom.name}`,
+          description: `Sesi video conference dan kolaborasi tim di ruang ${currentRoom.name}`,
+          code: currentRoom.code,
+          workspaceId: 'ws-main',
+          maxParticipants: currentRoom.capacity || 25,
+        },
+        {
+          id: currentUser?.id ? String(currentUser.id) : `user-${Date.now()}`,
+          name: currentUser?.fullName || getUserDisplayName(currentUser),
+          avatar: currentUser?.avatar || `/assets/characters/${characterConfig.archetype || 'resident'}/standing/south.png`,
+        }
+      );
+    }
+    setActiveMeetingSession(meeting);
+    setIsMeetingLobbyOpen(true);
+  }, [currentRoom, currentUser, characterConfig]);
+
+  const handleJoinMeetingFromLobby = useCallback((options: { isCamOn: boolean; isMicOn: boolean }) => {
+    setIsCamOn(options.isCamOn);
+    setIsMicOn(options.isMicOn);
+    multiplayerService.sendMediaState({ isCamOn: options.isCamOn, isMicOn: options.isMicOn });
+    setIsMeetingLobbyOpen(false);
+    setIsVideoConferenceOpen(true);
+  }, []);
+
+  const handleLeaveVideoConference = useCallback(() => {
+    setIsVideoConferenceOpen(false);
+    setIsCamOn(false);
+    setIsMicOn(false);
+    multiplayerService.sendMediaState({ isCamOn: false, isMicOn: false });
+    if (activeMeetingSession && currentUser) {
+      meetingService.leaveMeeting(String(currentUser.id));
+    }
+  }, [activeMeetingSession, currentUser]);
 
   const liveParticipants = dynamicParticipants;
   const totalOfficeParticipants = dynamicParticipants.length;
@@ -777,36 +794,30 @@ export const App: React.FC = () => {
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
               {currentView === 'simulation' && <PhaserGame />}
 
-              {/* Google Meet Video Conference Widget (Multi-Participant Realtime Video/Audio) */}
-              <GoogleMeetWidget
-                isOpen={isCamOn || onlineRemotePlayers.some((p) => p.mediaState?.isCamOn)}
-                onClose={() => {
-                  setIsCamOn(false);
-                  multiplayerService.sendMediaState({ isCamOn: false });
+              {/* WebRTC Video Conference Modal */}
+              <VideoConferenceModal
+                isOpen={isVideoConferenceOpen}
+                onClose={handleLeaveVideoConference}
+                meeting={activeMeetingSession}
+                currentUser={{
+                  id: currentUser?.id || 'me',
+                  username: currentUser?.username || 'user',
+                  fullName: currentUser?.fullName || getUserDisplayName(currentUser),
+                  role: currentUser?.role,
+                  avatar: currentUser?.avatar,
                 }}
-                isMicOn={isMicOn}
-                onToggleMic={() => {
-                  setIsMicOn((m) => {
-                    const next = !m;
-                    multiplayerService.sendMediaState({ isMicOn: next });
-                    return next;
-                  });
-                }}
-                isCamOn={isCamOn}
-                onToggleCam={() => {
-                  setIsCamOn((c) => {
-                    const next = !c;
-                    multiplayerService.sendMediaState({ isCamOn: next });
-                    return next;
-                  });
-                }}
-                isScreenSharing={isScreenSharing}
-                onToggleScreenShare={handleToggleScreenShare}
-                userName={currentUser?.fullName || getUserDisplayName(currentUser)}
-                userAvatar={currentUser?.avatar}
-                userRole={currentUser?.role}
-                roomCode={currentRoom?.code || 'NEURO-HQ-88'}
                 remotePlayers={onlineRemotePlayers}
+              />
+
+              {/* Meeting Device Lobby Modal */}
+              <MeetingLobbyModal
+                isOpen={isMeetingLobbyOpen}
+                onClose={() => setIsMeetingLobbyOpen(false)}
+                meeting={activeMeetingSession}
+                userName={currentUser?.fullName || getUserDisplayName(currentUser)}
+                userRole={currentUser?.role}
+                userAvatar={currentUser?.avatar}
+                onJoin={handleJoinMeetingFromLobby}
               />
 
               {/* Screen Share Live Presentation Widget */}
@@ -870,7 +881,6 @@ export const App: React.FC = () => {
                 isOpen={isParticipantsOpen}
                 onClose={() => setIsParticipantsOpen(false)}
                 participants={dynamicParticipants}
-                onStartScenario={handleStartScenario}
                 currentRoom={currentRoom}
                 onOpenRoomModal={() => {
                   setIsParticipantsOpen(false);

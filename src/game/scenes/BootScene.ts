@@ -1,20 +1,8 @@
 import Phaser from 'phaser';
 
 /**
- * BootScene — preloads every visual asset, displays company logo on loading,
+ * BootScene — preloads visual assets, displays NeuroSim Pro logo on loading,
  * then registers accurate animation frames and transitions to OfficeScene.
- *
- * Spritesheet Dimensions: 576 × 512 px (9 columns × 8 rows of 64×64 cells)
- *
- * Frame Calculation (col + row * 9):
- *   Row 0 (y=0):   idle_south  (9 frames) → 0, 1, 2, 3, 4, 5, 6, 7, 8
- *   Row 1 (y=64):  idle_east   (9 frames) → 9, 10, 11, 12, 13, 14, 15, 16, 17
- *   Row 2 (y=128): idle_north  (9 frames) → 18, 19, 20, 21, 22, 23, 24, 25, 26
- *   Row 3 (y=192): idle_west   (9 frames) → 27, 28, 29, 30, 31, 32, 33, 34, 35
- *   Row 4 (y=256): walk_south  (8 frames) → 36, 37, 38, 39, 40, 41, 42, 43  (frame 44 is blank padding)
- *   Row 5 (y=320): walk_east   (8 frames) → 45, 46, 47, 48, 49, 50, 51, 52  (frame 53 is blank padding)
- *   Row 6 (y=384): walk_north  (8 frames) → 54, 55, 56, 57, 58, 59, 60, 61  (frame 62 is blank padding)
- *   Row 7 (y=448): walk_west   (8 frames) → 63, 64, 65, 66, 67, 68, 69, 70  (frame 71 is blank padding)
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -29,7 +17,7 @@ export class BootScene extends Phaser.Scene {
 
     // --- Loading UI ---
     const logoPlaceholder = this.add.rectangle(width / 2, height / 2 - 70, 72, 72, 0x242a38, 0);
-    const title = this.add.text(width / 2, height / 2 - 20, 'NEUROSIM', {
+    const title = this.add.text(width / 2, height / 2 - 20, 'NEUROSIM PRO', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '22px',
       color: '#e0b65d',
@@ -38,7 +26,7 @@ export class BootScene extends Phaser.Scene {
 
     const bar = this.add.rectangle(width / 2, height / 2 + 30, 320, 20, 0x242a38);
     const fill = this.add.rectangle(width / 2 - 156, height / 2 + 30, 0, 14, 0x355c5a).setOrigin(0, 0.5);
-    const label = this.add.text(width / 2, height / 2 + 60, 'Memuat aset kantor & karakter...', {
+    const label = this.add.text(width / 2, height / 2 + 60, 'Memuat lingkungan kantor virtual & karakter...', {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#a7b7bb',
@@ -79,8 +67,7 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`prop-${name}`, `/assets/props/${name}.png`);
     }
 
-    // 3. Modular Character spritesheets (64×64 cell, 9 columns × 8 rows = 576×512)
-    // 6 Full Archetypes + Aliases for player & NPCs
+    // 3. Modular Character spritesheets (64×64 cell)
     const characters = [
       { key: 'char-resident', path: '/assets/characters/resident/aligned.png' },
       { key: 'char-office-worker', path: '/assets/characters/npc-rina.png' },
@@ -142,11 +129,6 @@ export class BootScene extends Phaser.Scene {
     }
 
     // Walk animations: Exactly 8 active frames per row (Row 4..7)
-    // Frame numbers derived from 9 columns per row:
-    // Row 4 (south): 4 * 9 = 36..43 (8 frames)
-    // Row 5 (east):  5 * 9 = 45..52 (8 frames)
-    // Row 6 (north): 6 * 9 = 54..61 (8 frames)
-    // Row 7 (west):  7 * 9 = 63..70 (8 frames)
     const walkConfigs: { dir: string; start: number }[] = [
       { dir: 'south', start: 36 }, // 36..43
       { dir: 'east', start: 45 },  // 45..52
@@ -164,13 +146,12 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // 4 Diagonal Walk Animations (Animasi Jalan Serong):
-    // Memungkinkan langkah diagonal berirama dinamis
+    // Diagonal Walk Animations
     const diagonalWalkConfigs: { dir: string; start: number }[] = [
-      { dir: 'south-east', start: 45 }, // East frames (45..52)
-      { dir: 'south-west', start: 63 }, // West frames (63..70)
-      { dir: 'north-east', start: 45 }, // East frames (45..52)
-      { dir: 'north-west', start: 63 }, // West frames (63..70)
+      { dir: 'south-east', start: 45 },
+      { dir: 'south-west', start: 63 },
+      { dir: 'north-east', start: 45 },
+      { dir: 'north-west', start: 63 },
     ];
     for (const { dir, start } of diagonalWalkConfigs) {
       if (!this.anims.exists(`${key}-walk-${dir}`)) {
@@ -183,18 +164,29 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // Sitting animations for all 4 directions (Rows 8..11)
-    const sitConfigs: { dir: string; start: number }[] = [
-      { dir: 'south', start: 72 }, // Row 8: 72..80 (duduk madep bawah)
-      { dir: 'east', start: 81 },  // Row 9: 81..89 (duduk madep kanan)
-      { dir: 'north', start: 90 }, // Row 10: 90..98 (duduk madep atas)
-      { dir: 'west', start: 99 },  // Row 11: 99..107 (duduk madep kiri)
-    ];
-    for (const { dir, start } of sitConfigs) {
+    // Sitting animations for all 4 directions (Rows 8..11 if >= 108 frames, otherwise safe fallback)
+    const texture = this.textures.get(key);
+    const totalFrames = texture ? texture.frameTotal : 0;
+
+    const sitConfigs: { dir: string; start: number; end: number }[] = totalFrames >= 108
+      ? [
+          { dir: 'south', start: 72, end: 80 }, // Row 8: 72..80 (duduk madep bawah)
+          { dir: 'east', start: 81, end: 89 },  // Row 9: 81..89 (duduk madep kanan)
+          { dir: 'north', start: 90, end: 98 }, // Row 10: 90..98 (duduk madep atas)
+          { dir: 'west', start: 99, end: 107 }, // Row 11: 99..107 (duduk madep kiri)
+        ]
+      : [
+          { dir: 'south', start: 0, end: 0 },
+          { dir: 'east', start: 9, end: 9 },
+          { dir: 'north', start: 18, end: 18 },
+          { dir: 'west', start: 27, end: 27 },
+        ];
+
+    for (const { dir, start, end } of sitConfigs) {
       if (!this.anims.exists(`${key}-sit-${dir}`)) {
         this.anims.create({
           key: `${key}-sit-${dir}`,
-          frames: this.anims.generateFrameNumbers(key, { start, end: start + 8 }),
+          frames: this.anims.generateFrameNumbers(key, { start, end }),
           frameRate: 2,
           repeat: -1,
         });

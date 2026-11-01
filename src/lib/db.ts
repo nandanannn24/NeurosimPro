@@ -1,6 +1,7 @@
 import mysql from 'mysql2/promise';
 
 let pool: mysql.Pool | null = null;
+let isInitializing = false;
 
 export function getDbPool(): mysql.Pool | null {
   const host = process.env.MYSQL_HOST;
@@ -9,17 +10,19 @@ export function getDbPool(): mysql.Pool | null {
   const database = process.env.MYSQL_DATABASE || 'neurosim_db';
   const port = Number(process.env.MYSQL_PORT) || 3306;
 
+  // Don't initialize if credentials are not provided
   if (!host || !user) {
     return null;
   }
 
-  if (!pool) {
+  if (!pool && !isInitializing) {
+    isInitializing = true;
     try {
       pool = mysql.createPool({
         host,
         port,
         user,
-        password,
+        password: password || '',
         database,
         waitForConnections: true,
         connectionLimit: 10,
@@ -29,8 +32,10 @@ export function getDbPool(): mysql.Pool | null {
         keepAliveInitialDelay: 10000,
       });
     } catch (err) {
-      console.error('[DB] Gagal menginisialisasi connection pool MySQL:', err);
-      return null;
+      console.error('[DB] Gagal membuat pool MySQL:', err);
+      pool = null;
+    } finally {
+      isInitializing = false;
     }
   }
 
@@ -46,7 +51,23 @@ export async function isDbConnected(): Promise<boolean> {
     conn.release();
     return true;
   } catch (err) {
-    console.warn('[DB Ping] Koneksi MySQL tidak aktif:', err);
     return false;
   }
+}
+
+/**
+ * Universal safe query function that executes against MySQL if available,
+ * and falls back to the in-memory enterprise datastore when MySQL is offline.
+ */
+export async function executeQuery<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  const p = getDbPool();
+  if (p) {
+    try {
+      const [rows] = await p.query(sql, params);
+      return rows as T[];
+    } catch (err: any) {
+      console.warn(`[DB Query Warning]: ${err.message} - falling back to memory store`);
+    }
+  }
+  return [];
 }

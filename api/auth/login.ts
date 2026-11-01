@@ -1,131 +1,104 @@
 import bcrypt from 'bcryptjs';
-import mysql from 'mysql2/promise';
-
-let pool: mysql.Pool | null = null;
-
-function getDbPool(): mysql.Pool | null {
-  const host = process.env.MYSQL_HOST;
-  const user = process.env.MYSQL_USER;
-  const password = process.env.MYSQL_PASSWORD;
-  const database = process.env.MYSQL_DATABASE || 'neurosim_db';
-  const port = Number(process.env.MYSQL_PORT) || 3306;
-
-  if (!host || !user) {
-    return null;
-  }
-
-  if (!pool) {
-    try {
-      pool = mysql.createPool({
-        host,
-        port,
-        user,
-        password,
-        database,
-        waitForConnections: true,
-        connectionLimit: 5,
-        queueLimit: 0,
-        connectTimeout: 5000,
-        enableKeepAlive: true,
-        keepAliveInitialDelay: 10000,
-      });
-    } catch (err) {
-      console.error('[DB] Gagal membuat pool MySQL:', err);
-      return null;
-    }
-  }
-
-  return pool;
-}
+import { getDbPool } from '../../src/lib/db';
 
 export interface LoginRequestBody {
+  username?: string;
+  email?: string;
+  password?: string;
+}
+
+export interface UserSessionData {
+  id: number;
   username: string;
-  password: string;
+  email: string;
+  fullName: string;
+  role: string;
+  roleSlug: 'super_admin' | 'org_admin' | 'manager' | 'employee' | 'guest';
+  department: string;
+  title: string;
+  avatar: string;
+  orgId: number;
+  reduceMotion: boolean;
+  highContrast: boolean;
+  textScale: string;
 }
 
 export interface LoginResponse {
   success: boolean;
   message?: string;
-  user?: {
-    id: number;
-    username: string;
-    fullName: string;
-    role: string;
-    department: string;
-    avatar: string;
-    reduceMotion: boolean;
-    highContrast: boolean;
-    textScale: string;
-  };
+  user?: UserSessionData;
+  token?: string;
   history?: any[];
 }
 
-const DEMO_ACCOUNTS: Record<string, { pass: string; user: NonNullable<LoginResponse['user']> }> = {
-  baginda: {
-    pass: 'baginda123',
-    user: {
-      id: 1,
-      username: 'baginda',
-      fullName: 'Baginda Putra Krista',
-      role: 'Staff Pengembang Antarmuka & Aksesibilitas',
-      department: 'Divisi Frontend & UI/UX',
-      avatar: '/assets/characters/resident/standing/south.png',
-      reduceMotion: false,
-      highContrast: false,
-      textScale: 'normal',
-    },
-  },
-  priyoga: {
-    pass: 'priyoga123',
-    user: {
-      id: 2,
-      username: 'priyoga',
-      fullName: 'Priyoga Listyo Ananda',
-      role: 'Game Engine & Physics Lead',
-      department: 'Divisi Simulasi & Phaser',
-      avatar: '/assets/characters/resident/standing/south.png',
-      reduceMotion: false,
-      highContrast: false,
-      textScale: 'normal',
-    },
-  },
-  rifat_lead: {
-    pass: 'password123',
-    user: {
-      id: 3,
-      username: 'rifat_lead',
-      fullName: 'Rifat Abhista',
-      role: 'Backend & AI Architecture Lead',
-      department: 'Divisi Database & Gemini AI',
-      avatar: '/assets/characters/resident/standing/south.png',
-      reduceMotion: false,
-      highContrast: false,
-      textScale: 'normal',
-    },
-  },
-  rifat: {
-    pass: 'rifat123',
-    user: {
-      id: 3,
-      username: 'rifat',
-      fullName: 'Rifat Abhista',
-      role: 'Backend & AI Architecture Lead',
-      department: 'Divisi Database & Gemini AI',
-      avatar: '/assets/characters/resident/standing/south.png',
-      reduceMotion: false,
-      highContrast: false,
-      textScale: 'normal',
-    },
-  },
+export const ENTERPRISE_DEMO_ACCOUNTS: Record<string, { pass: string; user: UserSessionData }> = {
   admin: {
     pass: 'admin123',
     user: {
-      id: 99,
+      id: 1,
       username: 'admin',
-      fullName: 'Evaluator Juri Hackathon',
-      role: 'Dewan Juri & Penguji Sistem',
-      department: 'Inception 2026 Evaluation',
+      email: 'admin@neurosimpro.com',
+      fullName: 'Administrator NeuroSim Pro',
+      role: 'Super Administrator',
+      roleSlug: 'super_admin',
+      department: 'Enterprise Management',
+      title: 'Platform Administrator',
       avatar: '/assets/characters/office-worker/standing/south.png',
+      orgId: 1,
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
+  manager: {
+    pass: 'manager123',
+    user: {
+      id: 2,
+      username: 'manager',
+      email: 'manager@neurosimpro.com',
+      fullName: 'Operations Lead',
+      role: 'Manager / Team Leader',
+      roleSlug: 'manager',
+      department: 'Divisi Kolaborasi & Delivery',
+      title: 'Engineering Manager',
+      avatar: '/assets/characters/resident/standing/south.png',
+      orgId: 1,
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
+  employee: {
+    pass: 'employee123',
+    user: {
+      id: 3,
+      username: 'employee',
+      email: 'employee@neurosimpro.com',
+      fullName: 'Staff Pengembang Pro',
+      role: 'Employee / Member',
+      roleSlug: 'employee',
+      department: 'Divisi Antarmuka & Frontend',
+      title: 'Frontend Engineer',
+      avatar: '/assets/characters/resident/standing/south.png',
+      orgId: 1,
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
+  guest: {
+    pass: 'guest123',
+    user: {
+      id: 4,
+      username: 'guest',
+      email: 'guest@neurosimpro.com',
+      fullName: 'Tamu Kolaborasi',
+      role: 'Guest / External Attendee',
+      roleSlug: 'guest',
+      department: 'External Stakeholder',
+      title: 'Guest Collaborator',
+      avatar: '/assets/characters/courier/standing/south.png',
+      orgId: 1,
       reduceMotion: false,
       highContrast: false,
       textScale: 'normal',
@@ -134,79 +107,84 @@ const DEMO_ACCOUNTS: Record<string, { pass: string; user: NonNullable<LoginRespo
 };
 
 export async function processLogin(body: LoginRequestBody): Promise<LoginResponse> {
-  const { username, password } = body;
+  const identifier = (body.username || body.email || '').trim().toLowerCase();
+  const password = body.password || '';
 
-  if (!username || !password) {
-    return { success: false, message: 'Username dan password wajib diisi.' };
+  if (!identifier || !password) {
+    return { success: false, message: 'Username/Email dan password wajib diisi.' };
   }
 
-  const cleanUser = username.trim().toLowerCase();
   const pool = getDbPool();
 
-  // Jika koneksi MySQL aktif, utamakan otentikasi database MySQL
   if (pool) {
     try {
       const [rows]: any = await pool.query(
-        `SELECT id, username, password_hash, full_name, role, department, avatar,
-                reduce_motion, high_contrast, text_scale
-         FROM users WHERE username = ? LIMIT 1`,
-        [cleanUser]
+        `SELECT u.id, u.username, u.email, u.password_hash, u.full_name, u.title, u.department, u.avatar,
+                u.reduce_motion, u.high_contrast, u.text_scale, u.org_id,
+                r.name as role_name, r.slug as role_slug
+         FROM users u
+         LEFT JOIN roles r ON u.role_id = r.id
+         WHERE u.username = ? OR u.email = ? LIMIT 1`,
+        [identifier, identifier]
       );
 
       if (rows && rows.length > 0) {
-        const user = rows[0];
-        const isMatch = await bcrypt.compare(password, user.password_hash);
+        const u = rows[0];
+        const isMatch = await bcrypt.compare(password, u.password_hash);
         if (isMatch) {
-          // Ambil riwayat evaluasi terakhir user
           let history: any[] = [];
           try {
             const [histRows]: any = await pool.query(
               `SELECT id, scenario_id, level, user_goal, kejelasan_tingkat, konteks_tingkat,
                       tujuan_tingkat, batasan_tingkat, rekomendasi_level, created_at
                FROM user_evaluations WHERE user_id = ? ORDER BY created_at DESC LIMIT 10`,
-              [user.id]
+              [u.id]
             );
             history = histRows || [];
           } catch (e) {
-            console.warn('[Login History Fetch Error]:', e);
+            // history fetch optional
           }
 
           return {
             success: true,
-            message: 'Login berhasil via MySQL Database!',
+            message: 'Autentikasi berhasil melalui database MySQL.',
             user: {
-              id: user.id,
-              username: user.username,
-              fullName: user.full_name,
-              role: user.role,
-              department: user.department,
-              avatar: user.avatar,
-              reduceMotion: Boolean(user.reduce_motion),
-              highContrast: Boolean(user.high_contrast),
-              textScale: user.text_scale || 'normal',
+              id: u.id,
+              username: u.username,
+              email: u.email || `${u.username}@neurosimpro.com`,
+              fullName: u.full_name,
+              role: u.role_name || 'Employee / Member',
+              roleSlug: (u.role_slug || 'employee') as any,
+              department: u.department || 'Product & Engineering',
+              title: u.title || 'Staff Pengembang',
+              avatar: u.avatar || '/assets/characters/resident/standing/south.png',
+              orgId: u.org_id || 1,
+              reduceMotion: Boolean(u.reduce_motion),
+              highContrast: Boolean(u.high_contrast),
+              textScale: u.text_scale || 'normal',
             },
             history,
           };
         }
       }
-    } catch (dbErr: any) {
-      console.warn('[MySQL Query Warning - Fallback to demo mode if applicable]:', dbErr.message);
+    } catch (err: any) {
+      console.warn('[MySQL Login Query Warning]:', err.message);
     }
   }
 
-  // Fallback demo account check (Memastikan sesi juri penguji hackathon selalu lancar)
-  const demoMatch = DEMO_ACCOUNTS[cleanUser];
-  if (demoMatch && (password === demoMatch.pass || password === 'demo123' || password === 'password123' || password === 'rifat123')) {
+  // Fallback Enterprise Demo Accounts
+  const demo = ENTERPRISE_DEMO_ACCOUNTS[identifier];
+  if (demo && (password === demo.pass || password === 'admin123' || password === 'password123')) {
     return {
       success: true,
-      message: 'Login berhasil (Sesi Karyawan Terverifikasi)!',
-      user: demoMatch.user,
+      message: 'Login berhasil dengan sesi enterprise!',
+      user: demo.user,
       history: [
         {
           id: 101,
           scenario_id: 'skenario-1',
           level: 2,
-          user_goal: 'Meminta konfirmasi batas waktu laporan teknis',
+          user_goal: 'Konfirmasi prioritas sprint antarmuka',
           rekomendasi_level: 2,
           created_at: new Date(Date.now() - 3600000).toISOString(),
         },
@@ -216,9 +194,7 @@ export async function processLogin(body: LoginRequestBody): Promise<LoginRespons
 
   return {
     success: false,
-    message: pool
-      ? 'Username atau password tidak cocok.'
-      : 'Username atau password tidak ditemukan. Gunakan akun demo (baginda / baginda123) atau lengkapi MYSQL_PASSWORD.',
+    message: 'Kredensial tidak valid. Silakan periksa kembali username/email dan kata sandi Anda.',
   };
 }
 
@@ -281,7 +257,6 @@ export async function handleLogin(req: Request): Promise<Response> {
   }
 }
 
-// Universal Vercel Serverless Function Handler (Node.js & Edge compatible)
 export default async function handler(req: any, res?: any) {
   try {
     const body = await parseBody(req);

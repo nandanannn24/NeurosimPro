@@ -15,6 +15,8 @@ import {
   Award,
   Layers,
   Briefcase,
+  Video,
+  Plus,
 } from 'lucide-react';
 import { UserProfile } from '../modals/AuthModal';
 import { CharacterCustomization, CharacterDirection } from '../../types/character';
@@ -29,7 +31,7 @@ export interface OfficeRoom {
   spawnCoords: { x: number; y: number };
   capacity: number;
   activeCount: number;
-  npcs: string[];
+  features: string[];
 }
 
 export const mapZoneToRoomId = (zoneId?: string): string => {
@@ -41,65 +43,64 @@ export const mapZoneToRoomId = (zoneId?: string): string => {
   return 'room-main';
 };
 
-export const getOfficeRooms = (userName: string, activeZoneId: string = 'room-workspace'): OfficeRoom[] => {
+export const getOfficeRooms = (userName: string = 'Pengguna', activeZoneId: string = 'room-workspace'): OfficeRoom[] => {
   const currentRoomId = mapZoneToRoomId(activeZoneId);
-  const selfLabel = userName ? `${userName} (Kamu)` : 'Rifat (Kamu)';
 
   return [
     {
       id: 'room-main',
       name: 'Kantor Utama & Open Workspace',
       zone: 'Workstation Utama',
-      description: 'Pusat workstation tim dengan 16 meja kerja komputer, koridor navigasi sentral, dan area kolaborasi.',
+      description: 'Pusat workstation tim dengan 16 meja kerja komputer, koridor navigasi sentral, dan area kolaborasi terbuka.',
       spawnCoords: { x: 1687, y: 880 },
       capacity: 25,
       activeCount: currentRoomId === 'room-main' ? 1 : 0,
-      npcs: currentRoomId === 'room-main' ? [selfLabel] : ['Meja Kerja Siap Pakai'],
+      features: ['16 Meja Kerja Komputer', 'Sistem Duduk 4 Arah', 'Area Kolaborasi Terbuka'],
     },
     {
       id: 'room-meeting',
-      name: 'Ruang Rapat Strategis',
+      name: 'Ruang Rapat Strategis & Konferensi',
       zone: 'Ruang Rapat & Konferensi',
-      description: 'Ruang konferensi formal berlantai kayu untuk presentasi proposal dan negosiasi proyek bersama Pak Hendra.',
+      description: 'Ruang konferensi formal berlantai kayu untuk presentasi proposal, video conference, dan breakout session tim.',
       spawnCoords: { x: 600, y: 480 },
       capacity: 12,
-      activeCount: currentRoomId === 'room-meeting' ? 2 : 1,
-      npcs: currentRoomId === 'room-meeting' ? [selfLabel, 'Pak Hendra (Klien)'] : ['Pak Hendra (Klien)'],
+      activeCount: currentRoomId === 'room-meeting' ? 1 : 0,
+      features: ['Meja Rapat Panjang', 'Screen Sharing Proyektor', 'Breakout Room Host'],
     },
     {
       id: 'room-pantry',
       name: 'Pantry & Coffee Breakroom',
       zone: 'Pantry & Dapur',
-      description: 'Area santai dengan espresso machine, meja kafe, dan rekan kerja senior Dimas untuk obrolan santai.',
+      description: 'Area santai dengan mesin espresso, meja bar kafe, dan area istirahat untuk obrolan santai antar rekan kerja.',
       spawnCoords: { x: 480, y: 950 },
       capacity: 15,
-      activeCount: currentRoomId === 'room-pantry' ? 2 : 1,
-      npcs: currentRoomId === 'room-pantry' ? [selfLabel, 'Dimas (Senior)'] : ['Dimas (Senior)'],
+      activeCount: currentRoomId === 'room-pantry' ? 1 : 0,
+      features: ['Mesin Espresso & Snack Bar', 'Meja Diskusi Kasual', 'Zone Istirahat Tim'],
     },
     {
       id: 'room-executive',
       name: 'Ruang Eksekutif & Manajemen',
       zone: 'Ruang Eksekutif & Manajemen',
-      description: 'Ruangan kerja pimpinan Bu Rina untuk pembagian tugas, arahan prioritas, dan feedback kerja berkala.',
+      description: 'Ruangan kerja kepemimpinan dan manajemen organisasi untuk perencanaan strategis dan evaluasi kinerja berkala.',
       spawnCoords: { x: 2150, y: 360 },
       capacity: 8,
-      activeCount: currentRoomId === 'room-executive' ? 2 : 1,
-      npcs: currentRoomId === 'room-executive' ? [selfLabel, 'Bu Rina (Atasan)'] : ['Bu Rina (Atasan)'],
+      activeCount: currentRoomId === 'room-executive' ? 1 : 0,
+      features: ['Meja Pimpinan Eksekutif', 'Ruang Pembahasan Khusus', 'Akses Terbatas Manajemen'],
     },
     {
       id: 'room-afk',
-      name: 'AFK Room & Area Santai',
+      name: 'AFK Room & Area Fokus Santai',
       zone: 'AFK Room & Area Santai',
-      description: 'Ruang istirahat dan relaksasi tenang dilengkapi sofa empuk, sudut buku, dan dispenser untuk jeda istirahat.',
+      description: 'Ruang relaksasi tenang dilengkapi sofa empuk, rak buku, dan dispenser untuk jeda istirahat tanpa gangguan.',
       spawnCoords: { x: 600, y: 1180 },
       capacity: 10,
       activeCount: currentRoomId === 'room-afk' ? 1 : 0,
-      npcs: currentRoomId === 'room-afk' ? [selfLabel] : ['Area Relaksasi Karyawan'],
+      features: ['Sofa Relaksasi', 'Status AFK Otomatis', 'Zona Hening & Fokus'],
     },
   ];
 };
 
-export const OFFICE_ROOMS: OfficeRoom[] = getOfficeRooms('Rifat Abhista');
+export const OFFICE_ROOMS: OfficeRoom[] = getOfficeRooms('Pengguna');
 
 interface Props {
   currentUser: UserProfile | null;
@@ -113,6 +114,7 @@ interface Props {
   onOpenAuth: () => void;
   onLogout: () => void;
   onBackToLanding: () => void;
+  onStartVideoConference?: () => void;
 }
 
 export const DashboardView: React.FC<Props> = ({
@@ -127,12 +129,13 @@ export const DashboardView: React.FC<Props> = ({
   onOpenAuth,
   onLogout,
   onBackToLanding,
+  onStartVideoConference,
 }) => {
   const [previewDirection, setPreviewDirection] = useState<CharacterDirection>('south');
   const completedTasks = tasks.filter((t) => t.completed).length;
   const progressPercent = Math.round((completedTasks / tasks.length) * 100);
   const currentRoomId = mapZoneToRoomId(currentZoneId);
-  const officeRooms = React.useMemo(() => getOfficeRooms(currentUser?.fullName || 'Rifat Abhista', currentZoneId), [currentUser?.fullName, currentZoneId]);
+  const officeRooms = React.useMemo(() => getOfficeRooms(currentUser?.fullName || 'Pengguna', currentZoneId), [currentUser?.fullName, currentZoneId]);
 
   return (
     <div className="w-full h-full overflow-y-auto bg-sand/30 text-ink select-none flex flex-col">
@@ -142,18 +145,23 @@ export const DashboardView: React.FC<Props> = ({
           <button
             type="button"
             onClick={onBackToLanding}
-            className="flex items-center gap-2.5 text-left group"
+            className="flex items-center gap-2.5 text-left group cursor-pointer"
             title="Kembali ke Beranda"
           >
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-cream border border-teal/30 flex items-center justify-center shadow-xs">
-              <img src="/logo.webp" alt="Logo" className="w-full h-full object-contain" />
+              <img src="/logo.webp" alt="Logo NeuroSim Pro" className="w-full h-full object-contain" />
             </div>
             <div>
-              <span className="font-bold text-sm tracking-tight text-ink group-hover:text-teal transition-colors block leading-tight font-serif">
-                NeuroSim
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-sm tracking-tight text-ink group-hover:text-teal transition-colors block leading-tight font-serif">
+                  NeuroSim
+                </span>
+                <span className="text-[10px] font-black px-1 py-0.2 rounded bg-teal text-soft uppercase tracking-wider">
+                  PRO
+                </span>
+              </div>
               <span className="text-[10px] text-teal font-semibold block leading-tight">
-                Dashboard Karyawan
+                Virtual Office Dashboard
               </span>
             </div>
           </button>
@@ -161,10 +169,21 @@ export const DashboardView: React.FC<Props> = ({
 
         {/* Center / Right Header Actions */}
         <div className="flex items-center gap-3">
+          {onStartVideoConference && (
+            <button
+              type="button"
+              onClick={onStartVideoConference}
+              className="px-3 py-1.5 rounded-lg border border-teal bg-teal/10 hover:bg-teal/20 text-xs font-bold text-teal transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Video className="w-3.5 h-3.5 text-teal" />
+              <span>Video Conference</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onOpenCustomizer}
-            className="px-3 py-1.5 rounded-lg border border-[#d1c7b5] bg-cream hover:bg-sand text-xs font-semibold text-ink transition-colors flex items-center gap-1.5 shadow-2xs"
+            className="px-3 py-1.5 rounded-lg border border-[#d1c7b5] bg-cream hover:bg-sand text-xs font-semibold text-ink transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
           >
             <Shirt className="w-3.5 h-3.5 text-teal" />
             <span>Kustomisasi Karakter</span>
@@ -173,10 +192,10 @@ export const DashboardView: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => onEnterSimulationDirect(OFFICE_ROOMS[0])}
-            className="px-4 py-2 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-all shadow-xs flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
-            <span>Masuk Simulasi 2D</span>
+            <span>Masuk Virtual Office</span>
           </button>
 
           {currentUser ? (
@@ -184,18 +203,18 @@ export const DashboardView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={onOpenAuth}
-                className="flex items-center gap-2 p-1 rounded-lg hover:bg-sand/70 transition-colors"
-                title="Lihat Profil ID Karyawan"
+                className="flex items-center gap-2 p-1 rounded-lg hover:bg-sand/70 transition-colors cursor-pointer"
+                title="Lihat Profil ID Pengguna"
               >
                 <div className="w-7 h-7 rounded-full bg-teal text-soft flex items-center justify-center text-xs font-bold shadow-xs">
-                  {currentUser.fullName.charAt(0)}
+                  {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
                 </div>
                 <div className="text-left hidden sm:block">
                   <span className="text-xs font-bold block text-ink leading-tight">
-                    {currentUser.fullName.split(' ')[0]}
+                    {currentUser.fullName ? currentUser.fullName.split(' ')[0] : currentUser.username}
                   </span>
                   <span className="text-[10px] text-teal block leading-tight font-medium">
-                    {currentUser.role}
+                    {currentUser.role || 'Member'}
                   </span>
                 </div>
               </button>
@@ -203,7 +222,7 @@ export const DashboardView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={onLogout}
-                className="p-1.5 rounded-lg text-ink-muted hover:text-red-700 hover:bg-red-50 transition-colors"
+                className="p-1.5 rounded-lg text-ink-muted hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
                 title="Keluar / Log Out"
               >
                 <LogOut className="w-4 h-4" />
@@ -213,7 +232,7 @@ export const DashboardView: React.FC<Props> = ({
             <button
               type="button"
               onClick={onOpenAuth}
-              className="px-3 py-1.5 rounded-lg border border-teal text-teal hover:bg-teal/10 text-xs font-bold transition-colors"
+              className="px-3 py-1.5 rounded-lg border border-teal text-teal hover:bg-teal/10 text-xs font-bold transition-colors cursor-pointer"
             >
               Masuk Akun
             </button>
@@ -230,7 +249,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="flex items-center justify-between border-b border-[#d1c7b5] pb-3">
               <div className="flex items-center gap-2 text-teal font-bold text-xs uppercase tracking-wider">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Kartu ID Karyawan</span>
+                <span>Kartu ID Anggota Tim</span>
               </div>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
                 AKTIF ONLINE
@@ -247,27 +266,27 @@ export const DashboardView: React.FC<Props> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="font-bold text-sm sm:text-base text-ink truncate font-serif">
-                  {currentUser?.fullName || 'Rifat Abhista'}
+                  {currentUser?.fullName || characterConfig.name || 'Pengguna NeuroSim'}
                 </h2>
                 <p className="text-xs text-teal font-semibold mt-0.5 truncate">
-                  {currentUser?.role || 'Staff Pengembang Antarmuka'}
+                  {currentUser?.role || 'Staff Tim Kolaborasi'}
                 </p>
                 <p className="text-[11px] text-ink-muted truncate">
-                  {currentUser?.department || 'Divisi Aksesibilitas & UI/UX'}
+                  {currentUser?.department || 'Kantor Pusat NeuroSim Pro'}
                 </p>
               </div>
             </div>
 
             <div className="pt-2 border-t border-[#d1c7b5] grid grid-cols-2 gap-2 text-xs">
               <div className="p-2 rounded bg-sand/40 border border-[#d1c7b5]">
-                <span className="text-[10px] text-ink-muted block">ID Karyawan:</span>
+                <span className="text-[10px] text-ink-muted block">ID Anggota:</span>
                 <span className="font-mono font-bold text-ink">
-                  #EMP-{currentUser?.id || '2026-01'}
+                  #USR-{currentUser?.id || '2026-01'}
                 </span>
               </div>
               <div className="p-2 rounded bg-sand/40 border border-[#d1c7b5]">
                 <span className="text-[10px] text-ink-muted block">Database Status:</span>
-                <span className="font-bold text-emerald-700">{currentUser ? "Tersinkronisasi" : "Mode Tamu"}</span>
+                <span className="font-bold text-emerald-700">{currentUser ? 'Tersinkronisasi MySQL' : 'Mode Tamu'}</span>
               </div>
             </div>
           </div>
@@ -277,9 +296,8 @@ export const DashboardView: React.FC<Props> = ({
             <div className="w-full flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-ink flex items-center gap-1.5">
                 <Shirt className="w-4 h-4 text-teal" />
-                <span>Karakter Simulator Aktif</span>
+                <span>Avatar Virtual Aktif</span>
               </span>
-              
             </div>
 
             <CharacterCanvasPreview
@@ -302,7 +320,7 @@ export const DashboardView: React.FC<Props> = ({
             <button
               type="button"
               onClick={onOpenCustomizer}
-              className="w-full mt-3 py-2 px-3 rounded-xl bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-xs"
+              className="w-full mt-3 py-2 px-3 rounded-xl bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
             >
               <Shirt className="w-3.5 h-3.5" />
               <span>Buka Kustomisasi Karakter</span>
@@ -314,7 +332,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-ink flex items-center gap-1.5">
                 <Briefcase className="w-4 h-4 text-ochre" />
-                <span>Progres Agenda Harian</span>
+                <span>Agenda Kerja Hari Ini</span>
               </span>
               <span className="font-mono text-xs font-bold text-teal">
                 {completedTasks}/{tasks.length} Selesai
@@ -355,7 +373,7 @@ export const DashboardView: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Right Column (Width: 8/12): Room Directory & Lobby + AI Evaluation History */}
+        {/* Right Column (Width: 8/12): Room Directory & Lobby + Simulation Assessment History */}
         <div className="lg:col-span-8 space-y-6">
           {/* Room Directory / Lobby Selection */}
           <div className="bg-cream border-2 border-[#b5aa94] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
@@ -363,15 +381,15 @@ export const DashboardView: React.FC<Props> = ({
               <div>
                 <h3 className="font-bold text-base sm:text-lg text-ink font-serif flex items-center gap-2">
                   <DoorOpen className="w-5 h-5 text-teal" />
-                  <span>Pilihan Ruangan Kantor Virtual</span>
+                  <span>Ruangan Kantor Virtual Terpadu</span>
                 </h3>
                 <p className="text-xs text-ink-muted">
-                  Pilih ruangan kerja untuk memasuki lobby atau langsung menuju koordinat ruangan di kantor 2D.
+                  Pilih ruangan kerja untuk memasuki lobby atau langsung menuju titik koordinat di kantor virtual 2D.
                 </p>
               </div>
 
               <span className="text-[11px] font-mono font-bold text-teal bg-teal/10 px-2.5 py-1 rounded-lg border border-teal/20 self-start sm:self-auto">
-                {officeRooms.length} RUANGAN TERSEDIA
+                {officeRooms.length} RUANGAN SIAP PAKAI
               </span>
             </div>
 
@@ -380,79 +398,85 @@ export const DashboardView: React.FC<Props> = ({
               {officeRooms.map((room) => {
                 const isCurrent = room.id === currentRoomId;
                 return (
-                <div
-                  key={room.id}
-                  className={
-                    isCurrent
-                      ? 'bg-sand/70 border-teal shadow-xs ring-1 ring-teal/30 p-4 transition-all flex flex-col justify-between space-y-3 group rounded-xl border'
-                      : 'bg-sand/30 hover:bg-sand/60 border-[#d1c7b5] hover:border-teal p-4 transition-all flex flex-col justify-between space-y-3 group shadow-2xs rounded-xl border'
-                  }
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-1 flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-teal uppercase tracking-wide bg-cream px-2 py-0.5 rounded border border-[#d1c7b5]">
-                          {room.zone}
-                        </span>
-                        {isCurrent && (
-                          <span className="text-[9.5px] font-bold text-soft bg-emerald-700 px-2 py-0.5 rounded-full uppercase flex items-center gap-1 shadow-2xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                            Lokasi Avatar Saat Ini
+                  <div
+                    key={room.id}
+                    className={
+                      isCurrent
+                        ? 'bg-sand/70 border-teal shadow-xs ring-1 ring-teal/30 p-4 transition-all flex flex-col justify-between space-y-3 group rounded-xl border'
+                        : 'bg-sand/30 hover:bg-sand/60 border-[#d1c7b5] hover:border-teal p-4 transition-all flex flex-col justify-between space-y-3 group shadow-2xs rounded-xl border'
+                    }
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-1 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-teal uppercase tracking-wide bg-cream px-2 py-0.5 rounded border border-[#d1c7b5]">
+                            {room.zone}
                           </span>
-                        )}
+                          {isCurrent && (
+                            <span className="text-[9.5px] font-bold text-soft bg-emerald-700 px-2 py-0.5 rounded-full uppercase flex items-center gap-1 shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                              Lokasi Anda
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-ink-muted font-mono">
+                          <Users className="w-3 h-3 text-teal" />
+                          <span>Kapasitas {room.capacity}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] text-ink-muted font-mono">
-                        <Users className="w-3 h-3 text-teal" />
-                        <span>{room.activeCount} aktif</span>
+
+                      <h4 className="font-bold text-sm text-ink group-hover:text-teal transition-colors">
+                        {room.name}
+                      </h4>
+
+                      <p className="text-xs text-ink-muted leading-relaxed line-clamp-2">
+                        {room.description}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {room.features.map((feat, fIdx) => (
+                          <span
+                            key={fIdx}
+                            className="text-[9.5px] px-1.5 py-0.2 bg-cream rounded border border-[#d1c7b5] text-ink-muted"
+                          >
+                            {feat}
+                          </span>
+                        ))}
                       </div>
                     </div>
 
-                    <h4 className="font-bold text-sm text-ink group-hover:text-teal transition-colors">
-                      {room.name}
-                    </h4>
-
-                    <p className="text-xs text-ink-muted leading-relaxed line-clamp-2">
-                      {room.description}
-                    </p>
-
-                    <div className="text-[11px] text-ink font-medium">
-                      <span className="text-ink-muted">Rekan di ruangan: </span>
-                      {room.npcs.join(', ')}
+                    {/* Room CTAs */}
+                    <div className="pt-2 border-t border-[#d1c7b5]/60 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onSelectRoom(room)}
+                        className="flex-1 py-2 px-3 rounded-lg bg-cream hover:bg-sand border border-[#b5aa94] text-xs font-bold text-ink transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Users className="w-3.5 h-3.5 text-teal" />
+                        <span>Masuk Lobby</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEnterSimulationDirect(room)}
+                        className="flex-1 py-2 px-3 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Masuk Kantor 2D</span>
+                      </button>
                     </div>
                   </div>
-
-                  {/* Room CTAs */}
-                  <div className="pt-2 border-t border-[#d1c7b5]/60 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onSelectRoom(room)}
-                      className="flex-1 py-2 px-3 rounded-lg bg-cream hover:bg-sand border border-[#b5aa94] text-xs font-bold text-ink transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <Users className="w-3.5 h-3.5 text-teal" />
-                      <span>Masuk Lobby</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onEnterSimulationDirect(room)}
-                      className="flex-1 py-2 px-3 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Masuk 2D</span>
-                    </button>
-                  </div>
-                </div>
-              );
+                );
               })}
             </div>
           </div>
 
-          {/* AI Evaluation History */}
+          {/* Training Hub & Assessment History */}
           <div className="bg-cream border-2 border-[#b5aa94] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-[#d1c7b5] pb-3">
               <div className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-ochre" />
                 <h3 className="font-bold text-sm sm:text-base text-ink font-serif">
-                  Riwayat Evaluasi Komunikasi AI (Remote MySQL)
+                  Riwayat Sesi & Evaluasi Komunikasi Kerja
                 </h3>
               </div>
               <span className="text-[10px] text-ink-muted font-mono">
@@ -463,18 +487,18 @@ export const DashboardView: React.FC<Props> = ({
             {userHistory.length === 0 ? (
               <div className="p-6 rounded-xl bg-sand/30 border border-dashed border-[#c4b8a1] text-center space-y-2">
                 <Compass className="w-7 h-7 text-ink-muted mx-auto" />
-                <p className="text-xs text-ink font-medium">Belum ada riwayat evaluasi percakapan.</p>
+                <p className="text-xs text-ink font-medium">Belum ada riwayat simulasi komunikasi.</p>
                 <p className="text-[11px] text-ink-muted max-w-md mx-auto">
-                  Mulailah berinteraksi dengan Bu Rina di Ruangan Bos, Dimas di Pantry, atau Pak Hendra di Meeting Room
-                  untuk mendapatkan penilaian objektif dari Gemini AI!
+                  Akses Training Hub untuk mengasah komunikasi profesional dengan rubrik evaluasi 4 dimensi
+                  (Kejelasan Pesan, Pemahaman Konteks, Pencapaian Tujuan, dan Batasan Profesional).
                 </p>
                 <button
                   type="button"
                   onClick={() => onEnterSimulationDirect(OFFICE_ROOMS[0])}
-                  className="mt-2 px-4 py-1.5 rounded-lg bg-teal text-soft text-xs font-bold shadow-xs hover:bg-teal-dark transition-colors inline-flex items-center gap-1.5"
+                  className="mt-2 px-4 py-1.5 rounded-lg bg-teal text-soft text-xs font-bold shadow-xs hover:bg-teal-dark transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <Play className="w-3 h-3 fill-current" />
-                  <span>Mulai Percakapan Sekarang</span>
+                  <span>Mulai Eksplorasi Sekarang</span>
                 </button>
               </div>
             ) : (

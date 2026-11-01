@@ -37,7 +37,7 @@ export const ProposalModal: React.FC<Props> = ({ isOpen, onClose }) => {
               Berkas Proposal & Landasan Riset NeuroSim
             </h2>
             <p className="text-[11px] text-soft/80">
-              Hackathon INCEPTION 2026 · Sub-Tema: Education and Inclusive Future Skills
+              NeuroSim Pro Architecture & Features · Sub-Tema: Education and Inclusive Future Skills
             </p>
           </div>
           <button
@@ -131,7 +131,7 @@ export const ProposalModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Footer */}
         <div className="px-5 py-3 bg-cream border-t border-sand flex justify-between items-center text-xs">
-          <span className="text-ink-muted">Sumber: Dokumen Resmi Proposal Inception 2026</span>
+          <span className="text-ink-muted">Sumber: Dokumen Resmi Proposal NeuroSim Pro Platform</span>
           <button
             type="button"
             onClick={onClose}

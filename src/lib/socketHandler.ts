@@ -153,6 +153,61 @@ export function setupRealtimeSocketIO(httpServer: HTTPServer): SocketIOServer {
       });
     });
 
+    // 7. Video Conference & Meeting Realtime Events
+    socket.on('c:meeting_create', (session: any) => {
+      io.emit('s:meeting_created', session);
+    });
+
+    socket.on('c:meeting_join', (data: any) => {
+      if (data && data.meetingId) {
+        socket.join(`meeting:${data.meetingId}`);
+        socket.to(`meeting:${data.meetingId}`).emit('s:meeting_joined', data);
+      }
+    });
+
+    socket.on('c:meeting_leave', (data: any) => {
+      if (data) {
+        io.emit('s:meeting_left', data);
+      }
+    });
+
+    socket.on('c:host_mute_participant', (data: any) => {
+      io.emit('s:host_muted', data);
+    });
+
+    socket.on('c:host_kick_participant', (data: any) => {
+      io.emit('s:host_kicked', data);
+    });
+
+    socket.on('c:host_lock_meeting', (data: any) => {
+      io.emit('s:host_locked', data);
+    });
+
+    socket.on('c:host_end_meeting', (data: any) => {
+      io.emit('s:host_ended', data);
+    });
+
+    // 8. Breakout Room Realtime Events
+    socket.on('c:breakout_opened', (data: any) => {
+      io.emit('s:breakout_opened', data);
+    });
+
+    socket.on('c:breakout_closed', (data: any) => {
+      io.emit('s:breakout_closed', data);
+    });
+
+    socket.on('c:breakout_move', (data: any) => {
+      io.emit('s:breakout_move', data);
+    });
+
+    socket.on('c:breakout_return_main', (data: any) => {
+      io.emit('s:breakout_return_main', data);
+    });
+
+    socket.on('c:breakout_broadcast_msg', (data: any) => {
+      io.emit('s:breakout_broadcast_msg', data);
+    });
+
     socket.on('disconnect', () => {
       if (currentRoomId && rooms.has(currentRoomId)) {
         const roomPlayers = rooms.get(currentRoomId)!;

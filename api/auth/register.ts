@@ -1,79 +1,37 @@
 import bcrypt from 'bcryptjs';
-import mysql from 'mysql2/promise';
-
-let pool: mysql.Pool | null = null;
-
-function getDbPool(): mysql.Pool | null {
-  const host = process.env.MYSQL_HOST;
-  const user = process.env.MYSQL_USER;
-  const password = process.env.MYSQL_PASSWORD;
-  const database = process.env.MYSQL_DATABASE || 'neurosim_db';
-  const port = Number(process.env.MYSQL_PORT) || 3306;
-
-  if (!host || !user) {
-    return null;
-  }
-
-  if (!pool) {
-    try {
-      pool = mysql.createPool({
-        host,
-        port,
-        user,
-        password,
-        database,
-        waitForConnections: true,
-        connectionLimit: 5,
-        queueLimit: 0,
-        connectTimeout: 5000,
-        enableKeepAlive: true,
-        keepAliveInitialDelay: 10000,
-      });
-    } catch (err) {
-      console.error('[DB] Gagal membuat pool MySQL:', err);
-      return null;
-    }
-  }
-
-  return pool;
-}
+import { getDbPool } from '../../src/lib/db';
+import { UserSessionData } from './login';
 
 export interface RegisterRequestBody {
   username: string;
+  email?: string;
   password: string;
   fullName: string;
   role?: string;
+  title?: string;
   department?: string;
   avatar?: string;
 }
 
-export interface AuthResponse {
+export interface RegisterResponse {
   success: boolean;
   message?: string;
-  user?: {
-    id: number;
-    username: string;
-    fullName: string;
-    role: string;
-    department: string;
-    avatar: string;
-    reduceMotion: boolean;
-    highContrast: boolean;
-    textScale: string;
-  };
+  user?: UserSessionData;
 }
 
-export async function processRegister(body: RegisterRequestBody): Promise<AuthResponse> {
+export async function processRegister(body: RegisterRequestBody): Promise<RegisterResponse> {
   const { username, password, fullName } = body;
-  const role = body.role || 'Staff Pengembang';
+  const email = (body.email || `${username.trim().toLowerCase()}@neurosimpro.com`).trim().toLowerCase();
+  const role = body.role || 'Employee / Member';
+  const title = body.title || 'Staff Pengembang';
   const department = body.department || 'Divisi Antarmuka & Frontend';
   const avatar = body.avatar || '/assets/characters/resident/standing/south.png';
 
   if (!username || username.trim().length < 3) {
     return { success: false, message: 'Username minimal 3 karakter.' };
   }
-  if (!password || password.length < 4) {
-    return { success: false, message: 'Password minimal 4 karakter.' };
+  if (!password || password.length < 6) {
+    return { success: false, message: 'Password minimal 6 karakter.' };
   }
   if (!fullName || fullName.trim().length < 2) {
     return { success: false, message: 'Nama lengkap wajib diisi.' };
@@ -84,61 +42,66 @@ export async function processRegister(body: RegisterRequestBody): Promise<AuthRe
 
   if (pool) {
     try {
-      // 1. Periksa apakah username sudah terdaftar di MySQL
       const [existing]: any = await pool.query(
-        'SELECT id FROM users WHERE username = ? LIMIT 1',
-        [cleanUser]
+        'SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1',
+        [cleanUser, email]
       );
 
       if (existing && existing.length > 0) {
-        return { success: false, message: 'Username sudah digunakan, silakan pilih username lain.' };
+        return { success: false, message: 'Username atau email sudah digunakan.' };
       }
 
-      // 2. Hash password
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
 
-      // 3. Simpan ke database MySQL
       const [result]: any = await pool.query(
-        `INSERT INTO users (username, password_hash, full_name, role, department, avatar)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [cleanUser, passwordHash, fullName.trim(), role, department, avatar]
+        `INSERT INTO users (org_id, role_id, username, email, password_hash, full_name, title, department, avatar)
+         VALUES (1, 4, ?, ?, ?, ?, ?, ?, ?)`,
+        [cleanUser, email, passwordHash, fullName.trim(), title, department, avatar]
       );
 
       const newId = result.insertId;
 
       return {
         success: true,
-        message: 'Registrasi berhasil di database MySQL!',
+        message: 'Registrasi akun NeuroSim Pro berhasil!',
         user: {
           id: newId,
           username: cleanUser,
+          email,
           fullName: fullName.trim(),
           role,
+          roleSlug: 'employee',
           department,
+          title,
           avatar,
+          orgId: 1,
           reduceMotion: false,
           highContrast: false,
           textScale: 'normal',
         },
       };
     } catch (err: any) {
-      console.warn('[Register MySQL Warning - Fallback to active session]:', err.message);
+      console.warn('[Register MySQL Warning]:', err.message);
     }
   }
 
-  // Fallback instant register (membuat ID Karyawan lokal saat server database offline)
-  const fallbackId = Date.now() % 100000;
+  // Fallback instant verified user for offline dev
+  const fallbackId = Math.floor(1000 + Math.random() * 9000);
   return {
     success: true,
-    message: 'ID Karyawan berhasil diterbitkan!',
+    message: 'ID Karyawan NeuroSim Pro berhasil diterbitkan!',
     user: {
       id: fallbackId,
       username: cleanUser,
+      email,
       fullName: fullName.trim(),
       role,
+      roleSlug: 'employee',
       department,
+      title,
       avatar,
+      orgId: 1,
       reduceMotion: false,
       highContrast: false,
       textScale: 'normal',
@@ -205,7 +168,6 @@ export async function handleRegister(req: Request): Promise<Response> {
   }
 }
 
-// Universal Vercel Serverless Function Handler (Node.js & Edge compatible)
 export default async function handler(req: any, res?: any) {
   try {
     const body = await parseBody(req);

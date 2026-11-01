@@ -9,13 +9,7 @@ import { UserStatus } from '../../components/gather/GatherDock';
 // Types & Interfaces
 // ---------------------------------------------------------------------------
 
-interface NPCData {
-  id: string;
-  name: string;
-  role: string;
-  sprite: Phaser.Physics.Arcade.Sprite;
-  scenarioId: string;
-}
+
 
 export interface SeatSpot {
   id: string;
@@ -85,12 +79,7 @@ const SPAWN = { x: 1687, y: 880 };
 // To-Do List board mounted ON THE TOP WALL of the central corridor
 const TODO_POS = { x: 1450, y: 140 };
 
-// NPC spawn positions per official specification
-const NPC_POSITIONS = {
-  rina: { x: 2150, y: 172 },   // Ruang Eksekutif & Manajemen (Bu Rina di meja eksekutif)
-  dimas: { x: 580, y: 270 },   // Pantry & Dapur (Skenario 2)
-  klien: { x: 920, y: 640 },   // Ruang Rapat & Konferensi (Pak Hendra di sudut dalam dekat credenza/dispenser)
-} as const;
+
 
 // ---------------------------------------------------------------------------
 // Office Zones Definition
@@ -164,7 +153,7 @@ export class OfficeScene extends Phaser.Scene {
   private lastDirection: string = 'north';
 
   // NPCs
-  private npcs: NPCData[] = [];
+  
 
   // Remote Multiplayer Players
   private remotePlayers: Map<string, RemotePlayerRecord> = new Map();
@@ -190,7 +179,7 @@ export class OfficeScene extends Phaser.Scene {
   private promptText!: Phaser.GameObjects.Text;
   private promptBg!: Phaser.GameObjects.Rectangle;
   private promptContainer!: Phaser.GameObjects.Container;
-  private activeNpcNear: NPCData | null = null;
+  
   private isNearTodoList = false;
 
   // Active Chat Speech Bubble (Strictly 1 at a time, replaced on new chat)
@@ -297,14 +286,8 @@ export class OfficeScene extends Phaser.Scene {
       } catch {}
     }
 
-    // 8. Spawn NPCs (Bu Rina, Dimas, Pak Hendra)
-    this.buildNPCs();
-
-    // 9. Physics Colliders
+    // 8. Physics Colliders
     this.physics.add.collider(this.player, this.obstacles);
-    for (const npc of this.npcs) {
-      this.physics.add.collider(this.player, npc.sprite);
-    }
 
     // 10. Camera Follow & Zoom Setup (Zoom 1.22 for rich, detailed pixel view)
     this.setupCamera();
@@ -1138,6 +1121,7 @@ export class OfficeScene extends Phaser.Scene {
 
     // Kursi Eksekutif Bu Rina di belakang meja utama menghadap South
     this.addDecorativeProp('office-chair', 2150, 155).setDepth(150);
+    this.addSeat('Kursi Pimpinan Eksekutif', 2150, 160, 'south', 'chair', 0, 4);
 
     // Kursi Tamu di depan meja utama menghadap ke Bu Rina
     this.addSolidProp('armchair-north', 2105, 335, 58, 52, 355);  // Guest Chair 1
@@ -1475,70 +1459,7 @@ export class OfficeScene extends Phaser.Scene {
     this.player.setDepth((this.player.body as Phaser.Physics.Arcade.Body).bottom);
   }
 
-  // =========================================================================
-  // NPC CREATION
-  // =========================================================================
-
-  private buildNPCs(): void {
-    // 1. Bu Rina — Ruang Eksekutif & Manajemen
-    this.spawnNpc(
-      'rina',
-      'Bu Rina (Atasan)',
-      'Head of Department',
-      'skenario-1',
-      'char-rina',
-      NPC_POSITIONS.rina
-    );
-
-    // 2. Dimas — Pantry & Dapur
-    this.spawnNpc(
-      'dimas',
-      'Dimas (Rekan Senior)',
-      'Senior Engineer',
-      'skenario-2',
-      'char-dimas',
-      NPC_POSITIONS.dimas
-    );
-
-    // 3. Pak Hendra — Ruang Rapat & Konferensi
-    this.spawnNpc(
-      'klien',
-      'Pak Hendra (Klien)',
-      'Enterprise Client Partner',
-      'skenario-3',
-      'char-klien',
-      NPC_POSITIONS.klien
-    );
-  }
-
-  private spawnNpc(
-    id: string,
-    name: string,
-    role: string,
-    scenarioId: string,
-    spriteKey: string,
-    pos: { x: number; y: number }
-  ): void {
-    const sprite = this.physics.add
-      .sprite(pos.x, pos.y, spriteKey)
-      .setScale(CHAR_SCALE)
-      .setImmovable(true);
-
-    // Solid collision body for NPC
-    (sprite.body as Phaser.Physics.Arcade.Body)
-      .setSize(26, 20)
-      .setOffset(19, 44);
-
-    if (id === 'rina') {
-      sprite.play(`${spriteKey}-sit-south`);
-      sprite.setDepth(210);
-    } else {
-      sprite.play(`${spriteKey}-idle-south`);
-      sprite.setDepth((sprite.body as Phaser.Physics.Arcade.Body).bottom);
-    }
-
-    this.npcs.push({ id, name, role, sprite, scenarioId });
-  }
+  
 
   // =========================================================================
   // INTERACTION PROMPT & LOGIC
@@ -1585,39 +1506,7 @@ export class OfficeScene extends Phaser.Scene {
 
     this.isNearTodoList = false;
 
-    // 2. Proximity to NPCs
-    this.activeNpcNear = null;
-    for (const npc of this.npcs) {
-      const dist = Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        npc.sprite.x,
-        npc.sprite.y
-      );
-
-      const maxDist = npc.id === 'rina' ? 175 : NPC_INTERACT_DIST;
-      if (dist < maxDist) {
-        this.activeNpcNear = npc;
-        break;
-      }
-    }
-
-    if (this.activeNpcNear) {
-      this.showPrompt(
-        this.activeNpcNear.sprite.x,
-        this.activeNpcNear.sprite.y - 58,
-        `Tekan [E] Bicara (${this.activeNpcNear.name})`
-      );
-
-      if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
-        this.lockPlayer();
-        EventBus.emit(GAME_EVENTS.OPEN_DIALOG, {
-          scenarioId: this.activeNpcNear.scenarioId,
-          npcName: this.activeNpcNear.name,
-        });
-      }
-      return;
-    }
+    // 2. Proximity to Sittable Seats
 
     // 3. Proximity to Sittable Seats (Chairs, Armchairs, Sofas)
     let nearestSeat: SeatSpot | null = null;
@@ -1632,7 +1521,7 @@ export class OfficeScene extends Phaser.Scene {
 
     if (nearestSeat) {
       this.showPrompt(nearestSeat.x, nearestSeat.y - 45, `Tekan [SPASI] Duduk (${nearestSeat.name})`);
-      if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+      if (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE)) {
         this.sitDown(nearestSeat);
       }
     } else {

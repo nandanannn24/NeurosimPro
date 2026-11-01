@@ -239,7 +239,7 @@ export const ACCESSORIES_OPTIONS: SelectOption[] = [
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_CHARACTER: CharacterCustomization = {
-  name: 'Rifat Abhista',
+  name: 'Karyawan NeuroSim',
   archetype: 'resident',
   gender: 'male',
   bodyType: 'standard',
