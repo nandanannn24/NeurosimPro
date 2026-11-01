@@ -61,4 +61,14 @@ export const GAME_EVENTS = {
   REMOTE_MEDIA_CHANGED: 'remote-media-changed',
   /** Toggle Google Meet video conference UI */
   TOGGLE_GOOGLE_MEET: 'toggle-google-meet',
+  /** Seat claimed by player (Anti-stacking) */
+  SEAT_OCCUPIED: 'seat-occupied',
+  /** Seat vacated by player */
+  SEAT_VACATED: 'seat-vacated',
+  /** Initial seats state in bracket room */
+  SEATS_STATE: 'seats-state',
+  /** Sitting denied because seat is occupied */
+  SEAT_DENIED: 'seat-denied',
+  /** Inactivity auto AFK triggered */
+  AUTO_AFK_TRIGGERED: 'auto-afk-triggered',
 } as const;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, ClipboardList, LayoutDashboard } from 'lucide-react';
+import { User, ClipboardList, LayoutDashboard, Server, ShieldCheck } from 'lucide-react';
 import { A11yControls, TextScale } from '../ui/A11yControls';
 import { UserProfile } from '../modals/AuthModal';
 import { OfficeRoom } from '../../types/room';
@@ -23,6 +23,10 @@ interface Props {
   onOpenRoomModal?: () => void;
   onNavigateDashboard?: () => void;
   onOpenCustomizer?: () => void;
+  currentLobbyId?: string;
+  currentLobbyName?: string;
+  onOpenLobbySelector?: () => void;
+  onOpenAdminBilling?: () => void;
 }
 
 const getUserDisplayName = (user: UserProfile | null): string => {
@@ -51,6 +55,10 @@ export const Header: React.FC<Props> = ({
   currentRoom,
   onOpenRoomModal,
   onNavigateDashboard,
+  currentLobbyId,
+  currentLobbyName,
+  onOpenLobbySelector,
+  onOpenAdminBilling,
 }) => {
   const roomName = currentRoom?.name || 'Kantor Pusat NeuroSim Pro';
   const roomCode = currentRoom?.code || 'NEURO-HQ-88';
@@ -110,41 +118,36 @@ export const Header: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 2. Middle: Mode Switcher & To-Do Agenda Trigger */}
+      {/* 2. Middle: Lobby Bracket Selector, Admin Billing & Agenda Trigger */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Mode Switcher: 2D Office Map vs Agenda List */}
-        <div
-          role="radiogroup"
-          aria-label="Tampilan Mode Aplikasi"
-          className="flex bg-sand/90 p-0.5 rounded border border-[#d1c7b5] shadow-2xs"
-        >
+        {/* Lobby Bracket Selector (Max 5 Online Brackets) */}
+        {onOpenLobbySelector && (
           <button
             type="button"
-            role="radio"
-            aria-checked={mode === '2d'}
-            onClick={() => onModeChange('2d')}
-            className={`px-2 sm:px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
-              mode === '2d'
-                ? 'bg-cream text-ink shadow-xs border border-[#d1c7b5]'
-                : 'text-ink-muted hover:text-ink'
-            }`}
+            onClick={onOpenLobbySelector}
+            title="Pilih / Ganti Server Bracket (Batas 5 Server Online)"
+            className="px-2.5 py-1 text-xs font-semibold rounded border border-[#d1c7b5] bg-cream hover:bg-sand text-ink transition-colors flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
           >
-            Virtual Office
+            <Server className="w-3.5 h-3.5 text-teal" />
+            <span className="font-mono text-[11px] font-bold text-teal">{currentLobbyId || 'LOBBY-01'}</span>
+            <span className="text-[11px] text-ink-muted hidden md:inline truncate max-w-[120px]">
+              {currentLobbyName || 'Server Aktif'}
+            </span>
           </button>
+        )}
+
+        {/* Admin Billing Modal Trigger */}
+        {onOpenAdminBilling && (
           <button
             type="button"
-            role="radio"
-            aria-checked={mode === 'list'}
-            onClick={() => onModeChange('list')}
-            className={`px-2 sm:px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
-              mode === 'list'
-                ? 'bg-cream text-ink shadow-xs border border-[#d1c7b5]'
-                : 'text-ink-muted hover:text-ink'
-            }`}
+            onClick={onOpenAdminBilling}
+            title="Kelola 5 Server Bracket, Akses Perusahaan & Billing Key"
+            className="px-2.5 py-1 text-xs font-semibold rounded border border-amber-300 bg-amber-50/90 hover:bg-amber-100 text-amber-900 transition-colors flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
           >
-            Training Hub
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+            <span className="hidden sm:inline font-bold">Admin Billing</span>
           </button>
-        </div>
+        )}
 
         {/* To-Do Agenda Button */}
         <button

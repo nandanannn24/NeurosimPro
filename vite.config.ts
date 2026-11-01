@@ -4,6 +4,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import dotenv from 'dotenv';
 
 import { setupRealtimeSocketIO } from './src/lib/socketHandler';
+import { lobbyStore } from './src/lib/lobbyStore';
 
 // Muat variabel lingkungan dari .env
 dotenv.config();
@@ -33,36 +34,112 @@ function neurosimApiPlugin(): Plugin {
           res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
         }
 
-        // 1. Endpoint AI Chat
-        if (req.method === 'POST' && url === '/api/chat') {
+        // 1. Endpoint Lobby Brackets (5 Online Servers)
+        if (req.method === 'GET' && url === '/api/lobbies') {
           try {
-            const body = await parseJsonBody(req);
-            const { processChat } = await server.ssrLoadModule('./api/chat.ts');
-            const result = await processChat(body);
+            const lobbies = lobbyStore.getLobbies();
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(result));
-          } catch (err) {
-            console.error('[Vite API] Error pada /api/chat:', err);
+            res.end(JSON.stringify({ success: true, lobbies }));
+          } catch (err: any) {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ reply: 'Baik, tolong lanjutkan tugasnya ya.' }));
+            res.end(JSON.stringify({ success: false, message: err.message }));
           }
           return;
         }
 
-        // 2. Endpoint AI Evaluator
-        if (req.method === 'POST' && url === '/api/evaluate') {
+        // 2. Endpoint Join Lobby (Validasi ID Lobby & Billing Key)
+        if (req.method === 'POST' && url === '/api/lobbies/join') {
           try {
             const body = await parseJsonBody(req);
-            const { processEvaluate } = await server.ssrLoadModule('./api/evaluate.ts');
-            const result = await processEvaluate(body);
+            const lobby = lobbyStore.getLobbyById(body.lobbyId);
+            if (!lobby) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: false, message: 'ID Lobby tidak ditemukan.' }));
+              return;
+            }
+            if (!lobby.isActive) {
+              res.statusCode = 403;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: false, message: 'Server bracket ini sedang dinonaktifkan oleh administrator.' }));
+              return;
+            }
+            if (lobby.isLocked && body.billingKey?.trim().toUpperCase() !== lobby.billingKey.toUpperCase()) {
+              res.statusCode = 403;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: false, message: 'Billing key tidak valid untuk mengakses server bracket perusahaan ini.' }));
+              return;
+            }
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(result));
-          } catch (err) {
-            console.error('[Vite API] Error pada /api/evaluate:', err);
+            res.end(JSON.stringify({ success: true, lobby }));
+          } catch (err: any) {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Gagal memproses evaluasi' }));
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 3. Endpoint Admin Billing Sessions
+        if (req.method === 'GET' && url === '/api/admin/billing') {
+          try {
+            const sessions = lobbyStore.getBillingSessions();
+            const lobbies = lobbyStore.getLobbies();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, sessions, lobbies }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 4. Endpoint Admin Update Billing & Lobby Allocation
+        if (req.method === 'POST' && url === '/api/admin/billing/update') {
+          try {
+            const body = await parseJsonBody(req);
+            const result = lobbyStore.updateLobbyBilling(body);
+            res.statusCode = result.success ? 200 : 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 5. Endpoint Admin Generate Billing Key
+        if (req.method === 'POST' && url === '/api/admin/billing/generate-key') {
+          try {
+            const body = await parseJsonBody(req);
+            const key = lobbyStore.generateBillingKey(body.prefix || 'CORP');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, billingKey: key }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 6. Endpoint Seats Occupancy
+        if (req.method === 'GET' && url?.startsWith('/api/seats')) {
+          try {
+            const q = req.url?.split('?')[1] || '';
+            const params = new URLSearchParams(q);
+            const bracketId = params.get('bracketId') || 'LOBBY-01';
+            const seats = lobbyStore.getOccupiedSeats(bracketId);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, bracketId, seats }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
           }
           return;
         }

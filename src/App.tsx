@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { SafetyBanner } from './components/layout/SafetyBanner';
 import { Header } from './components/layout/Header';
 import { ProposalModal } from './components/modals/ProposalModal';
 import { CharacterCustomizerModal } from './components/modals/CharacterCustomizerModal';
 import { CharacterCustomization } from './types/character';
 import { DEFAULT_CHARACTER } from './config/characterOptions';
 import { TodoListModal } from './components/modals/TodoListModal';
-import { DialogueModal } from './components/modals/DialogueModal';
-import { EvaluationModal } from './components/modals/EvaluationModal';
+import { AdminBillingModal } from './components/modals/AdminBillingModal';
+import { LobbyBracketSelectorModal } from './components/modals/LobbyBracketSelectorModal';
+import { LobbyBracket } from './types/lobby';
 import { AuthModal, UserProfile } from './components/modals/AuthModal';
 import { OnlineRoomModal } from './components/modals/OnlineRoomModal';
 import { ScenarioList } from './components/scenarios/ScenarioList';
@@ -71,6 +71,12 @@ export const App: React.FC = () => {
   const [isMeetingLobbyOpen, setIsMeetingLobbyOpen] = useState(false);
   const [isVideoConferenceOpen, setIsVideoConferenceOpen] = useState(false);
   const [activeMeetingSession, setActiveMeetingSession] = useState<MeetingSession | null>(null);
+
+  // 5 Online Server Brackets & Enterprise Billing Session State
+  const [isAdminBillingOpen, setIsAdminBillingOpen] = useState(false);
+  const [isLobbySelectorOpen, setIsLobbySelectorOpen] = useState(false);
+  const [currentLobbyId, setCurrentLobbyId] = useState('LOBBY-01');
+  const [currentLobbyName, setCurrentLobbyName] = useState('Kantor Pusat NeuroSim');
 
 
   // Online Multiplayer Room State (Dibersihkan agar count selalu sinkron dan dinamis)
@@ -759,10 +765,7 @@ export const App: React.FC = () => {
           currentView === 'simulation' ? 'flex' : 'hidden'
         }`}
       >
-        {/* Psychological Safety Banner */}
-        <SafetyBanner onLearnMore={() => setIsProposalOpen(true)} />
-
-        {/* Top Header & Mode Switcher */}
+        {/* Top Header */}
         <Header
           mode={mode}
           onModeChange={setMode}
@@ -785,6 +788,10 @@ export const App: React.FC = () => {
             EventBus.emit(GAME_EVENTS.PAUSE_INPUT);
           }}
           onOpenCustomizer={() => setIsCustomizerOpen(true)}
+          currentLobbyId={currentLobbyId}
+          currentLobbyName={currentLobbyName}
+          onOpenLobbySelector={() => setIsLobbySelectorOpen(true)}
+          onOpenAdminBilling={() => setIsAdminBillingOpen(true)}
         />
 
         {/* Main Workspace Viewport */}
@@ -917,39 +924,24 @@ export const App: React.FC = () => {
       {/* 5. MODALS & OVERLAYS (Accessible from all views)                     */}
       {/* ------------------------------------------------------------------- */}
 
-      {/* Active Dialogue Modal */}
-      {activeScenario && !evaluation && (
-        <DialogueModal
-          isOpen={true}
-          scenarioId={activeScenario.id}
-          npcName={activeScenario.name}
-          portraitSrc={activeScenario.portrait}
-          userGoal={userGoal || activeScenario.defaultGoal}
-          transcript={transcript}
-          turnCount={turnCount}
-          maxTurns={6}
-          isLoading={isLoading}
-          hintText={activeScenario.hint}
-          onSendMessage={sendMessage}
-          onSkipTurn={skipTurn}
-          onExit={handleCloseDialogue}
-          onRequestEvaluation={() => evaluateSession(currentUser?.id)}
-        />
-      )}
+      {/* 5 Server Brackets Selector Modal (Max 5 Online Brackets) */}
+      <LobbyBracketSelectorModal
+        isOpen={isLobbySelectorOpen}
+        onClose={() => setIsLobbySelectorOpen(false)}
+        currentLobbyId={currentLobbyId}
+        onSelectLobby={(lobby: LobbyBracket) => {
+          setCurrentLobbyId(lobby.id);
+          setCurrentLobbyName(lobby.name);
+          setIsLobbySelectorOpen(false);
+        }}
+      />
 
-      {/* Objective Evaluation Modal */}
-      {activeScenario && evaluation && (
-        <EvaluationModal
-          isOpen={true}
-          evaluation={evaluation}
-          userGoal={userGoal || activeScenario.defaultGoal}
-          transcript={transcript}
-          previousAttempt={previousAttempt}
-          onRetry={handleRetryDialogue}
-          onNextScenario={handleCloseDialogue}
-          onClose={handleCloseDialogue}
-        />
-      )}
+      {/* Enterprise Super Admin Billing & Access Panel */}
+      <AdminBillingModal
+        isOpen={isAdminBillingOpen}
+        onClose={() => setIsAdminBillingOpen(false)}
+        currentUser={currentUser}
+      />
 
       {/* Central Corridor To-Do Board Modal */}
       <TodoListModal

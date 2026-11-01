@@ -9,6 +9,7 @@ import {
   WebRTCSignalPacket,
 } from '../types/multiplayer';
 import { UserStatus } from '../components/gather/GatherDock';
+import { lobbyStore } from './lobbyStore';
 
 // In-Memory Room Registry: roomId -> Map<socketId, PlayerPresence>
 const rooms = new Map<string, Map<string, PlayerPresence>>();
@@ -69,10 +70,15 @@ export function setupRealtimeSocketIO(httpServer: HTTPServer): SocketIOServer {
       };
 
       roomPlayers.set(socket.id, playerData);
+      lobbyStore.updateOnlineCount(currentRoomId, roomPlayers.size);
 
       // 1. Kirim state semua pemain yang ada di ruangan ini ke pemain baru
       const existingPlayers = Array.from(roomPlayers.values());
       socket.emit('s:room_state', { roomId: currentRoomId, players: existingPlayers });
+
+      // Kirim daftar kursi/meja yang sudah ditempati di lobby ini
+      const occupiedSeats = lobbyStore.getOccupiedSeats(currentRoomId);
+      socket.emit('s:seats_state', { bracketId: currentRoomId, seats: occupiedSeats });
 
       // 2. Beritahu pemain lain di ruangan yang sama bahwa ada pemain baru bergabung
       socket.to(currentRoomId).emit('s:player_joined', playerData);
@@ -208,10 +214,58 @@ export function setupRealtimeSocketIO(httpServer: HTTPServer): SocketIOServer {
       io.emit('s:breakout_broadcast_msg', data);
     });
 
+    // 9. Seat Claim & Occupancy (Anti-Stacking Engine: 1 Kursi/Meja = 1 Orang)
+    socket.on('c:seat_claim', (data: { seatId: string; user: any }) => {
+      if (!currentRoomId || !data || !data.seatId) return;
+      const res = lobbyStore.claimSeat(currentRoomId, data.seatId, {
+        socketId: socket.id,
+        userId: data.user?.id,
+        username: data.user?.username || playerData?.username || 'Pengguna',
+        fullName: data.user?.fullName || playerData?.fullName || 'Pengguna Kantor',
+        avatar: data.user?.avatar || playerData?.avatar,
+        role: data.user?.role || playerData?.role,
+      });
+
+      if (!res.success) {
+        socket.emit('s:seat_denied', {
+          seatId: data.seatId,
+          message: res.message || 'Kursi ini sudah ditempati oleh orang lain!',
+        });
+      } else {
+        socket.emit('s:seat_claimed', { seatId: data.seatId, record: res.record });
+        io.to(currentRoomId).emit('s:seat_occupied', {
+          bracketId: currentRoomId,
+          seatId: data.seatId,
+          record: res.record,
+        });
+      }
+    });
+
+    socket.on('c:seat_vacate', (data: { seatId: string }) => {
+      if (!currentRoomId || !data || !data.seatId) return;
+      const ok = lobbyStore.vacateSeat(currentRoomId, data.seatId, socket.id);
+      if (ok) {
+        io.to(currentRoomId).emit('s:seat_vacated', {
+          bracketId: currentRoomId,
+          seatId: data.seatId,
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
+      // Bebaskan seluruh kursi yang ditempati oleh socket ini
+      const vacatedSeats = lobbyStore.vacateAllSeatsForSocket(socket.id);
+      for (const item of vacatedSeats) {
+        io.to(item.bracketId).emit('s:seat_vacated', {
+          bracketId: item.bracketId,
+          seatId: item.seatId,
+        });
+      }
+
       if (currentRoomId && rooms.has(currentRoomId)) {
         const roomPlayers = rooms.get(currentRoomId)!;
         roomPlayers.delete(socket.id);
+        lobbyStore.updateOnlineCount(currentRoomId, roomPlayers.size);
         socket.to(currentRoomId).emit('s:player_left', { socketId: socket.id });
         console.log(`[Socket.IO] Socket ${socket.id} keluar dari room: ${currentRoomId} (${roomPlayers.size} tersisa)`);
         if (roomPlayers.size === 0) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   ShieldCheck,
@@ -17,6 +17,9 @@ import {
   Briefcase,
   Video,
   Plus,
+  Server,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { UserProfile } from '../modals/AuthModal';
 import { CharacterCustomization, CharacterDirection } from '../../types/character';
@@ -132,6 +135,19 @@ export const DashboardView: React.FC<Props> = ({
   onStartVideoConference,
 }) => {
   const [previewDirection, setPreviewDirection] = useState<CharacterDirection>('south');
+  const [lobbies, setLobbies] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/lobbies')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.lobbies)) {
+          setLobbies(data.lobbies);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const completedTasks = tasks.filter((t) => t.completed).length;
   const progressPercent = Math.round((completedTasks / tasks.length) * 100);
   const currentRoomId = mapZoneToRoomId(currentZoneId);
@@ -470,71 +486,92 @@ export const DashboardView: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Training Hub & Assessment History */}
+          {/* 5 Online Server Brackets & Enterprise Billing Sessions */}
           <div className="bg-cream border-2 border-[#b5aa94] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-[#d1c7b5] pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#d1c7b5] pb-3 gap-2">
               <div className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-ochre" />
-                <h3 className="font-bold text-sm sm:text-base text-ink font-serif">
-                  Riwayat Sesi & Evaluasi Komunikasi Kerja
-                </h3>
+                <Server className="w-5 h-5 text-teal" />
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-ink font-serif">
+                    5 Server Bracket Online & Billing Perusahaan
+                  </h3>
+                  <p className="text-[11px] text-ink-muted">
+                    Batas 5 server online aktif • 20 workstation per bracket room • MySQL Server Synced
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] text-ink-muted font-mono">
-                {userHistory.length} Sesi Tercatat
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded bg-teal/10 text-teal border border-teal/20 self-start sm:self-auto">
+                {lobbies.length || 5} Server Siap
               </span>
             </div>
 
-            {userHistory.length === 0 ? (
-              <div className="p-6 rounded-xl bg-sand/30 border border-dashed border-[#c4b8a1] text-center space-y-2">
-                <Compass className="w-7 h-7 text-ink-muted mx-auto" />
-                <p className="text-xs text-ink font-medium">Belum ada riwayat simulasi komunikasi.</p>
-                <p className="text-[11px] text-ink-muted max-w-md mx-auto">
-                  Akses Training Hub untuk mengasah komunikasi profesional dengan rubrik evaluasi 4 dimensi
-                  (Kejelasan Pesan, Pemahaman Konteks, Pencapaian Tujuan, dan Batasan Profesional).
-                </p>
-                <button
-                  type="button"
-                  onClick={() => onEnterSimulationDirect(OFFICE_ROOMS[0])}
-                  className="mt-2 px-4 py-1.5 rounded-lg bg-teal text-soft text-xs font-bold shadow-xs hover:bg-teal-dark transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {(lobbies.length > 0
+                ? lobbies
+                : [
+                    { id: 'LOBBY-01', name: 'PT Maju Bersama', isLocked: false, onlineCount: 1, maxCapacity: 20 },
+                    { id: 'LOBBY-02', name: 'PT Inovasi Digital', isLocked: false, onlineCount: 0, maxCapacity: 20 },
+                    { id: 'LOBBY-03', name: 'PT Teknologi Nusantara', isLocked: true, onlineCount: 0, maxCapacity: 20 },
+                    { id: 'LOBBY-04', name: 'PT Ekosistem Kreatif', isLocked: true, onlineCount: 0, maxCapacity: 20 },
+                    { id: 'LOBBY-05', name: 'PT Sinergi Global', isLocked: false, onlineCount: 0, maxCapacity: 20 },
+                  ]
+              ).map((lobby: any) => (
+                <div
+                  key={lobby.id}
+                  className="p-4 rounded-xl bg-sand/40 border border-[#d1c7b5] hover:border-teal/50 transition-all flex flex-col justify-between space-y-3"
                 >
-                  <Play className="w-3 h-3 fill-current" />
-                  <span>Mulai Eksplorasi Sekarang</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {userHistory.slice(0, 5).map((evalItem: any, idx: number) => (
-                  <div
-                    key={evalItem.id || idx}
-                    className="p-3.5 rounded-xl bg-sand/30 border border-[#d1c7b5] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-ink">{evalItem.scenario_id || 'Skenario Kantor'}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-teal/10 text-teal font-bold border border-teal/20">
-                          Level {evalItem.level || 2}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-black px-1.5 py-0.5 rounded bg-teal/15 text-teal">
+                          {lobby.id}
                         </span>
+                        {lobby.isLocked ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" /> Billing Key
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                            <Unlock className="w-2.5 h-2.5" /> Terbuka
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-ink-muted">
-                        Tujuan: {evalItem.user_goal || 'Latihan komunikasi profesional'}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 sm:text-right flex-shrink-0">
-                      <div>
-                        <span className="text-[10px] text-ink-muted block">Rekomendasi Level:</span>
-                        <span className="font-bold text-teal text-sm">
-                          Level {evalItem.rekomendasi_level || 2}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-ink-muted font-mono">
-                        {evalItem.created_at ? new Date(evalItem.created_at).toLocaleDateString() : 'Hari ini'}
-                      </span>
+                      <h4 className="font-bold text-xs sm:text-sm text-ink mt-1.5">{lobby.name}</h4>
+                      <p className="text-[11px] text-ink-muted">20 Workstation Meja Kerja Dedicated</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] text-ink-muted mb-1 font-mono">
+                      <span>Okupansi Meja:</span>
+                      <span className="font-bold text-ink">
+                        {lobby.onlineCount || 0} / {lobby.maxCapacity || 20} Orang
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-[#d1c7b5]/50 overflow-hidden">
+                      <div
+                        className="h-full bg-teal rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.min(100, (((lobby.onlineCount || 0) / (lobby.maxCapacity || 20)) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('neurosim_current_lobby', lobby.id);
+                      onEnterSimulationDirect(OFFICE_ROOMS[0]);
+                    }}
+                    className="w-full py-1.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-teal font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <span>Masuk Kantor Virtual</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </main>

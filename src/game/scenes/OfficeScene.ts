@@ -20,6 +20,13 @@ export interface SeatSpot {
   sitY: number;
   facing: 'south' | 'north' | 'east' | 'west';
   type: 'chair' | 'sofa' | 'armchair' | 'stool';
+  occupiedBy?: {
+    socketId: string;
+    username: string;
+    fullName: string;
+  } | null;
+  deskTagText?: Phaser.GameObjects.Text;
+  deskTagBg?: Phaser.GameObjects.Rectangle;
 }
 
 export interface OfficeZone {
@@ -73,8 +80,8 @@ const TODO_INTERACT_DIST = 80;
 const CHAR_SCALE = 2.0;
 const PROP_SCALE = 2.0;
 
-// Default Spawn: In Main Workstation at employee desk (open corridor in front of desk)
-const SPAWN = { x: 1687, y: 880 };
+// Default Spawn: Tepat di karpet selamat datang / pintu masuk koridor utama (Welcome Mat)
+const SPAWN = { x: 1375, y: 1260 };
 
 // To-Do List board mounted ON THE TOP WALL of the central corridor
 const TODO_POS = { x: 1450, y: 140 };
@@ -224,6 +231,31 @@ export class OfficeScene extends Phaser.Scene {
     }
   }
 
+  // Local Player Nametag & Status HUD
+  private playerNametagContainer!: Phaser.GameObjects.Container;
+  private playerNameText!: Phaser.GameObjects.Text;
+  private playerStatusDot!: Phaser.GameObjects.Graphics;
+  private playerNameBg!: Phaser.GameObjects.Graphics;
+  private playerDisplayName: string = 'Pengguna';
+  private playerCurrentStatus: string = 'online';
+
+  // 30-Minute Inactivity AFK Timer
+  private lastUserActivityTime: number = Date.now();
+  private isAfk: boolean = false;
+  private readonly AFK_TIMEOUT_MS: number = 30 * 60 * 1000; // 30 Menit
+
+  // Desk Nametags (20 Workstations)
+  private deskTags: Map<
+    string,
+    {
+      container: Phaser.GameObjects.Container;
+      bg: Phaser.GameObjects.Rectangle;
+      text: Phaser.GameObjects.Text;
+      defaultLabel: string;
+      isPlayerDesk: boolean;
+    }
+  > = new Map();
+
   // Room Location HUD
   private currentZoneId: string | null = null;
   private locationPillContainer!: Phaser.GameObjects.Container;
@@ -327,6 +359,20 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.on(GAME_EVENTS.REMOTE_PLAYER_MOVED, this.handleRemotePlayerMoved, this);
     EventBus.on(GAME_EVENTS.REMOTE_PLAYER_LEFT, this.handleRemotePlayerLeft, this);
     EventBus.on(GAME_EVENTS.REMOTE_PLAYER_STATUS, this.handleRemotePlayerStatus, this);
+    EventBus.on(GAME_EVENTS.SEAT_OCCUPIED, this.handleSeatOccupied, this);
+    EventBus.on(GAME_EVENTS.SEAT_VACATED, this.handleSeatVacated, this);
+    EventBus.on(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
+    EventBus.on(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
+
+    // Track user input for 30-minute AFK timeout
+    this.input.on('pointermove', this.handleUserActivity, this);
+    this.input.on('pointerdown', this.handleUserActivity, this);
+    this.input.keyboard?.on('keydown', this.handleUserActivity, this);
+
+    // Test hook for fast verification of AFK auto-teleport
+    if (typeof window !== 'undefined') {
+      (window as any).__TRIGGER_AFK_TEST__ = () => this.triggerAfk('manual_test');
+    }
 
     // Initial sync of players already present in room
     const currentOnline = multiplayerService.getOnlinePlayers();
@@ -471,6 +517,17 @@ export class OfficeScene extends Phaser.Scene {
     if (this.screenShareBadgeContainer && this.screenShareBadgeContainer.active) {
       this.screenShareBadgeContainer.setPosition(this.player.x, this.player.y - 48);
       this.screenShareBadgeContainer.setDepth(this.player.y + 1020);
+    }
+
+    // Update local player nametag so nickname and status float above head at all times
+    if (this.playerNametagContainer && this.playerNametagContainer.active) {
+      this.playerNametagContainer.setPosition(this.player.x, this.player.y);
+      this.playerNametagContainer.setDepth(this.player.y + 1000);
+    }
+
+    // Inactivity AFK auto-move check: 30 minutes without keyboard or mouse input
+    if (!this.isAfk && Date.now() - this.lastUserActivityTime >= this.AFK_TIMEOUT_MS) {
+      this.triggerAfk('inactive_30_min');
     }
 
     // -------------------------------------------------------------------------
@@ -1156,17 +1213,21 @@ export class OfficeScene extends Phaser.Scene {
     // Modern Workstation Pods (2×2 Desk Islands) — Rapi, Padat, Profesional
     // Tidak amburadul: tertata simetris dengan aisle/lorong luas & tidak menutupi pintu!
 
-    // Pod 1 (Top-Left): Frontend & UI (Termasuk MEJA KAMU)
-    this.createWorkstationPod(1750, 740, 'left');
+    // 5 Pods = 20 Dedicated Desks (Satu meja satu orang, tidak bertumpuk)
+    // Pod 1 (Top-Left): Desks 1 - 4 (Desk 3 is Player Desk: MEJA KAMU)
+    this.createWorkstationPod(1, 1680, 740, 'left');
 
-    // Pod 2 (Top-Right): Backend & AI
-    this.createWorkstationPod(2210, 740);
+    // Pod 2 (Top-Center): Desks 5 - 8
+    this.createWorkstationPod(2, 2000, 740);
 
-    // Pod 3 (Bottom-Left): Game Engine
-    this.createWorkstationPod(1750, 1040);
+    // Pod 3 (Top-Right): Desks 9 - 12
+    this.createWorkstationPod(3, 2320, 740);
 
-    // Pod 4 (Bottom-Right): QA & Otomasi
-    this.createWorkstationPod(2210, 1040);
+    // Pod 4 (Bottom-Left): Desks 13 - 16
+    this.createWorkstationPod(4, 1680, 1040);
+
+    // Pod 5 (Bottom-Center): Desks 17 - 20
+    this.createWorkstationPod(5, 2000, 1040);
 
     // Breakout Coffee & Discussion Lounge (Ditempatkan rapi di tepi jendela selatan)
     this.addDecorativeProp('rug', 2100, 1270);
@@ -1215,6 +1276,7 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private createWorkstationPod(
+    podIndex: number,
     podX: number,
     podY: number,
     playerDeskCol?: 'left' | 'right'
@@ -1226,76 +1288,58 @@ export class OfficeScene extends Phaser.Scene {
     const northDeskY = podY - 36;
     const southDeskY = podY + 36;
 
-    // 1. Desks Sprites (4 desks joined back-to-back in a pod)
-    // Depth sorting strictly at base of desks
+    // Desks Sprites (4 desks joined back-to-back in a pod)
     this.add.image(leftDeskX, northDeskY, 'prop-desk').setScale(PROP_SCALE).setDepth(northDeskY + 44);
     this.add.image(rightDeskX, northDeskY, 'prop-desk').setScale(PROP_SCALE).setDepth(northDeskY + 44);
     this.add.image(leftDeskX, southDeskY, 'prop-desk').setScale(PROP_SCALE).setDepth(southDeskY + 44);
     this.add.image(rightDeskX, southDeskY, 'prop-desk').setScale(PROP_SCALE).setDepth(southDeskY + 44);
 
-    // 2. Computers & Monitors (Screen 'yang bergambar' strictly faces toward the chair!)
-    // North desks: user sits at northDeskY - 56 facing South -> screen must face North toward chair!
-    this.add
-      .image(leftDeskX, northDeskY - 8, 'prop-computer-north')
-      .setScale(PROP_SCALE)
-      .setDepth(northDeskY + 20);
-    this.add
-      .image(rightDeskX, northDeskY - 8, 'prop-computer-north')
-      .setScale(PROP_SCALE)
-      .setDepth(northDeskY + 20);
+    // Monitors (North desks face North toward user sitting facing South; South desks face South)
+    this.add.image(leftDeskX, northDeskY - 8, 'prop-computer-north').setScale(PROP_SCALE).setDepth(northDeskY + 20);
+    this.add.image(rightDeskX, northDeskY - 8, 'prop-computer-north').setScale(PROP_SCALE).setDepth(northDeskY + 20);
+    this.add.image(leftDeskX, southDeskY - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(southDeskY + 46);
+    this.add.image(rightDeskX, southDeskY - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(southDeskY + 46);
 
-    // South desks: user sits at southDeskY + 68 facing North -> screen faces South toward chair!
-    this.add
-      .image(leftDeskX, southDeskY - 12, 'prop-computer')
-      .setScale(PROP_SCALE)
-      .setDepth(southDeskY + 46);
-    this.add
-      .image(rightDeskX, southDeskY - 12, 'prop-computer')
-      .setScale(PROP_SCALE)
-      .setDepth(southDeskY + 46);
-
-    // 3. Ergonomic Office Chairs (Solid props — cannot be stepped onto or walked through)
-    // Kursi utara hadap South: sandaran di utara tubuh -> depth (y - 10)
+    // Chairs (Solid props)
     this.addSolidChair('office-chair', leftDeskX, northDeskY - 56, 38, 30, northDeskY - 56 - 10);
     this.addSolidChair('office-chair', rightDeskX, northDeskY - 56, 38, 30, northDeskY - 56 - 10);
-    // Kursi selatan hadap North: sandaran di selatan tubuh -> depth (y + 44)
     this.addSolidChair('office-chair-north', leftDeskX, southDeskY + 68, 38, 30, southDeskY + 68 + 44);
     this.addSolidChair('office-chair-north', rightDeskX, southDeskY + 68, 38, 30, southDeskY + 68 + 44);
 
-    // Register interactive seats for workstation
-    this.addSeat('Kursi Kerja', leftDeskX, northDeskY - 56, 'south', 'chair', 0, 4);
-    this.addSeat('Kursi Kerja', rightDeskX, northDeskY - 56, 'south', 'chair', 0, 4);
-    this.addSeat('Kursi Kerja', leftDeskX, southDeskY + 68, 'north', 'chair', 0, -14);
-    this.addSeat('Kursi Kerja', rightDeskX, southDeskY + 68, 'north', 'chair', 0, -14);
+    // Unique Desk IDs (desk-1 through desk-20)
+    const startNum = (podIndex - 1) * 4 + 1;
+    const deskId1 = `desk-${startNum}`;
+    const deskId2 = `desk-${startNum + 1}`;
+    const deskId3 = `desk-${startNum + 2}`;
+    const deskId4 = `desk-${startNum + 3}`;
 
-    // 4. Solid Physics Desks Collider (HANYA menutup 4 meja di tengah, tidak menghalangi kursi!):
+    // Register interactive seats with dedicated desk IDs
+    this.addSeat(`Meja ${startNum}`, leftDeskX, northDeskY - 56, 'south', 'chair', 0, 4, deskId1);
+    this.addSeat(`Meja ${startNum + 1}`, rightDeskX, northDeskY - 56, 'south', 'chair', 0, 4, deskId2);
+    this.addSeat(`Meja ${startNum + 2}`, leftDeskX, southDeskY + 68, 'north', 'chair', 0, -18, deskId3);
+    this.addSeat(`Meja ${startNum + 3}`, rightDeskX, southDeskY + 68, 'north', 'chair', 0, -18, deskId4);
+
+    // Solid Physics Collider covering the center desks
     const podCollider = this.add.rectangle(podX, podY, 216, 116, 0x000000, 0);
     this.physics.add.existing(podCollider, true);
     (podCollider.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
     this.obstacles.add(podCollider);
 
-    // 5. Player Desk Highlight ("MEJA KAMU")
+    // Dynamic Desk Nametags (MEJA KAMU for player's desk; MEJA N for colleagues)
+    this.createDeskNametag(deskId1, leftDeskX, northDeskY - 14, `MEJA ${startNum}`);
+    this.createDeskNametag(deskId2, rightDeskX, northDeskY - 14, `MEJA ${startNum + 1}`);
+    this.createDeskNametag(
+      deskId3,
+      leftDeskX,
+      southDeskY - 32,
+      playerDeskCol === 'left' ? 'MEJA KAMU' : `MEJA ${startNum + 2}`,
+      playerDeskCol === 'left'
+    );
+    this.createDeskNametag(deskId4, rightDeskX, southDeskY - 32, `MEJA ${startNum + 3}`);
+
     if (playerDeskCol) {
       const pX = playerDeskCol === 'left' ? leftDeskX : rightDeskX;
-      const pY = southDeskY;
-
-      // Small personalized desk succulent
-      this.addDecorativeProp('plant-small', pX - 22, pY - 12);
-
-      // "MEJA KAMU" prominent tag placed above the monitor seam
-      this.add
-        .rectangle(pX, pY - 32, 80, 18, 0x1e293b, 0.95)
-        .setStrokeStyle(1.5, 0xe0b65d)
-        .setDepth(southDeskY + 48);
-      this.add
-        .text(pX, pY - 32, 'MEJA KAMU', {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#e0b65d',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(southDeskY + 49);
+      this.addDecorativeProp('plant-small', pX - 22, southDeskY - 12);
     }
   }
 
@@ -1402,7 +1446,7 @@ export class OfficeScene extends Phaser.Scene {
       .text(
         TODO_POS.x,
         TODO_POS.y + 9,
-        '• Skenario 1: Bu Rina (Bos)\n• Skenario 2: Dimas (Pantry)\n• Skenario 3: Pak Hendra',
+        '• Ruang Rapat: Konferensi & Screen Share\n• Ruang AFK: Relaksasi & Auto-AFK\n• Workstation: 20 Meja Kerja Dedicated',
         {
           fontFamily: 'system-ui, sans-serif',
           fontSize: '9px',
@@ -1421,6 +1465,20 @@ export class OfficeScene extends Phaser.Scene {
 
     // 6. Central Corridor Decorative Elements
     this.addDecorativeProp('rug', 1375, 1260); // Entrance Welcome Mat
+
+    // Prominent Welcome Plaque mounted above the entrance welcome mat
+    const welcomePlaqueBg = this.add.rectangle(1375, 1205, 270, 26, 0x141824, 0.95);
+    welcomePlaqueBg.setStrokeStyle(1.5, 0xe0b65d);
+    welcomePlaqueBg.setDepth(1205);
+
+    const welcomePlaqueText = this.add.text(1375, 1205, '★ WELCOME TO NEUROSIM PRO ★', {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#e0b65d',
+      fontStyle: 'bold',
+    });
+    welcomePlaqueText.setOrigin(0.5);
+    welcomePlaqueText.setDepth(1206);
     this.addSolidProp('plant-large', 1230, 240, 52, 52); // Above pantry door, flush to wall
     this.addSolidProp('plant-large', 1230, 580, 52, 52); // Between pantry & meeting door
     this.addSolidProp('plant-large', 1230, 990, 52, 52); // Between meeting & AFK room door
@@ -1456,6 +1514,9 @@ export class OfficeScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.play(`${this.playerArchetypeKey}-idle-north`);
     this.player.setDepth((this.player.body as Phaser.Physics.Arcade.Body).bottom);
+
+    // Build Floating Local Player Nametag & Status HUD
+    this.buildLocalPlayerNametag();
   }
 
   
@@ -1519,9 +1580,30 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     if (nearestSeat) {
-      this.showPrompt(nearestSeat.x, nearestSeat.y - 45, `Tekan [SPASI] Duduk (${nearestSeat.name})`);
+      const myId = multiplayerService.getSocketId();
+      const isOccupiedByOther = Boolean(
+        nearestSeat.occupiedBy &&
+        nearestSeat.occupiedBy.socketId &&
+        nearestSeat.occupiedBy.socketId !== myId
+      );
+
+      if (isOccupiedByOther) {
+        const occupant = nearestSeat.occupiedBy?.fullName || nearestSeat.occupiedBy?.username || 'Rekan';
+        this.showPrompt(nearestSeat.x, nearestSeat.y - 45, `[DITEMPATI] ${nearestSeat.name} (${occupant})`);
+      } else {
+        this.showPrompt(nearestSeat.x, nearestSeat.y - 45, `Tekan [SPASI] Duduk (${nearestSeat.name})`);
+      }
+
       if (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE)) {
-        this.sitDown(nearestSeat);
+        if (isOccupiedByOther) {
+          const occupant = nearestSeat.occupiedBy?.fullName || nearestSeat.occupiedBy?.username || 'Rekan';
+          this.showTopBanner(
+            `Kursi ini sudah ditempati oleh ${occupant}!`,
+            'Satu kursi hanya dapat digunakan oleh 1 orang. Silakan gunakan kursi lain.'
+          );
+        } else {
+          this.sitDown(nearestSeat);
+        }
       }
     } else {
       this.promptContainer.setVisible(false);
@@ -1540,10 +1622,12 @@ export class OfficeScene extends Phaser.Scene {
     facing: 'south' | 'north' | 'east' | 'west',
     type: 'chair' | 'sofa' | 'armchair' | 'stool' = 'chair',
     offsetX: number = 0,
-    offsetY: number = 0
-  ): void {
-    this.seats.push({
-      id: `seat-${this.seats.length}`,
+    offsetY: number = 0,
+    seatId?: string
+  ): SeatSpot {
+    const id = seatId || `seat-${this.seats.length + 1}`;
+    const seat: SeatSpot = {
+      id,
       name,
       x,
       y,
@@ -1551,7 +1635,10 @@ export class OfficeScene extends Phaser.Scene {
       sitY: y + offsetY,
       facing,
       type,
-    });
+      occupiedBy: null,
+    };
+    this.seats.push(seat);
+    return seat;
   }
 
   private sitDown(seat: SeatSpot): void {
@@ -1573,15 +1660,23 @@ export class OfficeScene extends Phaser.Scene {
 
     // Depth sorting saat duduk:
     if (seat.facing === 'north') {
-      // Menghadap North: sandaran kursi berada di depan pinggang/kaki karakter
-      // Karakter depth (seat.y + 10) berada tepat di belakang kursi (seat.y + 44),
-      // sehingga sandaran kursi menutupi kaki/pinggang dan kepala/bahu menyembul rapi di atas kursi!
       this.player.setDepth(seat.y + 10);
     } else {
-      // Menghadap South / East / West: karakter duduk di depan sandaran / di atas bantalan kursi
       this.player.setDepth(seat.y + 55);
     }
     this.showPrompt(seat.sitX, seat.sitY - 78, '[SPASI] Berdiri');
+
+    // Record local occupancy
+    const myId = multiplayerService.getSocketId() || 'local-user';
+    seat.occupiedBy = {
+      socketId: myId,
+      username: 'user',
+      fullName: this.playerDisplayName,
+    };
+    this.updateDeskNametagDisplay(seat.id, this.playerDisplayName, true);
+
+    // Emit seat claim to server
+    multiplayerService.claimSeat(seat.id, seat.name);
 
     // Broadcast status duduk ke pemain lain di room online secara realtime
     multiplayerService.sendMovement({
@@ -1600,6 +1695,11 @@ export class OfficeScene extends Phaser.Scene {
     const seat = this.currentSeat;
     this.isSitting = false;
     this.currentSeat = null;
+
+    // Vacate seat on server & locally
+    multiplayerService.vacateSeat(seat.id);
+    seat.occupiedBy = null;
+    this.restoreDeskNametagDefault(seat.id);
 
     // Exit strictly BEHIND the chair / into open walkway (prevents clipping through desks/tables!)
     let exitX = seat.x;
@@ -2171,6 +2271,287 @@ export class OfficeScene extends Phaser.Scene {
   // CLEANUP
   // =========================================================================
 
+  // =========================================================================
+  // TOP BANNER ALERT HELPER
+  // =========================================================================
+
+  public showTopBanner(title: string, subtitle: string, borderColor: number = 0xe0b65d): void {
+    if (this.topBannerTween) {
+      this.topBannerTween.stop();
+      this.topBannerTween = null;
+    }
+
+    const zoom = this.cameras.main?.zoom || 1.22;
+    const { x: bannerX, y: targetY } = this.getScreenCoord(this.scale.width / 2, 85);
+    const { y: hiddenY } = this.getScreenCoord(this.scale.width / 2, -100);
+
+    this.topBannerContainer.setX(bannerX).setScale(1 / zoom);
+    this.topBannerTitleText.setText(title);
+    this.topBannerSubText.setText(subtitle);
+    this.topBannerBg.setStrokeStyle(1.5, borderColor);
+
+    const bannerW = Math.max(380, this.topBannerTitleText.width + 60);
+    this.topBannerBg.setSize(bannerW, 50);
+
+    this.topBannerContainer.setY(hiddenY).setAlpha(0);
+
+    this.topBannerTween = this.tweens.add({
+      targets: this.topBannerContainer,
+      y: targetY,
+      alpha: 1,
+      duration: 320,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(2400, () => {
+          if (this.topBannerContainer) {
+            this.tweens.add({
+              targets: this.topBannerContainer,
+              y: hiddenY,
+              alpha: 0,
+              duration: 280,
+              ease: 'Power2.easeIn',
+            });
+          }
+        });
+      },
+    });
+  }
+
+  // =========================================================================
+  // LOCAL PLAYER NAMETAG & STATUS HUD
+  // =========================================================================
+
+  public buildLocalPlayerNametag(): void {
+    let displayName = 'Pengguna';
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const savedUser = localStorage.getItem('neurosim_user');
+        if (savedUser) {
+          const u = JSON.parse(savedUser);
+          displayName = u.fullName || u.username || 'Pengguna';
+        }
+      } catch {}
+    }
+    this.playerDisplayName = displayName;
+
+    this.playerNameText = this.add
+      .text(0, 0, displayName, {
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '11px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0, 0.5);
+
+    const paddingX = 8;
+    const dotWidth = 12;
+    const pillW = Math.max(56, this.playerNameText.width + paddingX * 2 + dotWidth);
+    const pillH = 20;
+    const halfW = pillW / 2;
+    const pillY = -54;
+
+    this.playerNameBg = this.add.graphics();
+    this.playerNameBg.fillStyle(0x0f172a, 0.9);
+    this.playerNameBg.lineStyle(1.5, 0x10b981, 0.9);
+    this.playerNameBg.fillRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
+    this.playerNameBg.strokeRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
+
+    this.playerStatusDot = this.add.graphics();
+    this.drawStatusDot(this.playerStatusDot, -halfW + 8, pillY, 'online');
+
+    this.playerNameText.setPosition(-halfW + 16, pillY);
+
+    this.playerNametagContainer = this.add
+      .container(this.player.x, this.player.y)
+      .setDepth(this.player.y + 1000);
+    this.playerNametagContainer.add([this.playerNameBg, this.playerStatusDot, this.playerNameText]);
+  }
+
+  public updateLocalPlayerNametag(status: string): void {
+    this.playerCurrentStatus = status;
+    const isAfkStatus = status === 'afk';
+    const label = isAfkStatus ? `[AFK] ${this.playerDisplayName}` : this.playerDisplayName;
+    this.playerNameText.setText(label);
+
+    const paddingX = 8;
+    const dotWidth = 12;
+    const pillW = Math.max(56, this.playerNameText.width + paddingX * 2 + dotWidth);
+    const pillH = 20;
+    const halfW = pillW / 2;
+    const pillY = -54;
+
+    this.playerNameBg.clear();
+    this.playerNameBg.fillStyle(0x0f172a, 0.9);
+    this.playerNameBg.lineStyle(1.5, isAfkStatus ? 0xf59e0b : 0x10b981, 0.9);
+    this.playerNameBg.fillRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
+    this.playerNameBg.strokeRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
+
+    this.drawStatusDot(this.playerStatusDot, -halfW + 8, pillY, isAfkStatus ? 'away' : 'online');
+    this.playerNameText.setPosition(-halfW + 16, pillY);
+  }
+
+  // =========================================================================
+  // WORKSTATION DESK NAMETAG MANAGEMENT
+  // =========================================================================
+
+  public createDeskNametag(
+    deskId: string,
+    x: number,
+    y: number,
+    defaultLabel: string,
+    isPlayerDesk: boolean = false
+  ): void {
+    const w = Math.max(76, defaultLabel.length * 7 + 16);
+    const bg = this.add
+      .rectangle(x, y, w, 18, 0x1e293b, 0.95)
+      .setStrokeStyle(1.5, isPlayerDesk ? 0xe0b65d : 0x475569)
+      .setDepth(y + 80);
+
+    const text = this.add
+      .text(x, y, defaultLabel, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: isPlayerDesk ? '#e0b65d' : '#94a3b8',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(y + 81);
+
+    const container = this.add.container(0, 0, [bg, text]);
+    this.deskTags.set(deskId, {
+      container,
+      bg,
+      text,
+      defaultLabel,
+      isPlayerDesk,
+    });
+  }
+
+  public updateDeskNametagDisplay(deskId: string, occupantName: string, isMe: boolean): void {
+    const item = this.deskTags.get(deskId);
+    if (!item) return;
+    const label = isMe ? 'MEJA KAMU' : `MEJA ${occupantName}`;
+    item.text.setText(label);
+    item.text.setColor(isMe ? '#e0b65d' : '#38bdf8');
+    item.bg.width = Math.max(76, label.length * 7 + 16);
+    item.bg.setStrokeStyle(1.5, isMe ? 0xe0b65d : 0x0284c7);
+  }
+
+  public restoreDeskNametagDefault(deskId: string): void {
+    const item = this.deskTags.get(deskId);
+    if (!item) return;
+    item.text.setText(item.defaultLabel);
+    item.text.setColor(item.isPlayerDesk ? '#e0b65d' : '#94a3b8');
+    item.bg.width = Math.max(76, item.defaultLabel.length * 7 + 16);
+    item.bg.setStrokeStyle(1.5, item.isPlayerDesk ? 0xe0b65d : 0x475569);
+  }
+
+  // =========================================================================
+  // SEAT SYNCHRONIZATION HANDLERS (Anti-Stacking)
+  // =========================================================================
+
+  public handleSeatOccupied = (data: { seatId: string; occupiedBy: any }): void => {
+    if (!data?.seatId) return;
+    const seat = this.seats.find((s) => s.id === data.seatId);
+    if (seat) {
+      seat.occupiedBy = data.occupiedBy;
+      const name = data.occupiedBy?.fullName || data.occupiedBy?.username || 'Rekan';
+      const isMe = data.occupiedBy?.socketId === multiplayerService.getSocketId();
+      this.updateDeskNametagDisplay(seat.id, name, isMe);
+    }
+  };
+
+  public handleSeatVacated = (data: { seatId: string }): void => {
+    if (!data?.seatId) return;
+    const seat = this.seats.find((s) => s.id === data.seatId);
+    if (seat) {
+      seat.occupiedBy = null;
+      this.restoreDeskNametagDefault(seat.id);
+    }
+  };
+
+  public handleSeatsState = (seatsState: Record<string, any>): void => {
+    if (!seatsState || typeof seatsState !== 'object') return;
+    for (const [seatId, record] of Object.entries(seatsState)) {
+      const seat = this.seats.find((s) => s.id === seatId);
+      if (seat) {
+        seat.occupiedBy = record?.occupiedBy || null;
+        if (seat.occupiedBy) {
+          const name = seat.occupiedBy.fullName || seat.occupiedBy.username || 'Rekan';
+          const isMe = seat.occupiedBy.socketId === multiplayerService.getSocketId();
+          this.updateDeskNametagDisplay(seat.id, name, isMe);
+        } else {
+          this.restoreDeskNametagDefault(seat.id);
+        }
+      }
+    }
+  };
+
+  public handleSeatDenied = (data: { seatId: string; message: string }): void => {
+    this.showTopBanner('Gagal Menduduki Kursi', data?.message || 'Kursi telah ditempati oleh rekan lain.');
+    if (this.isSitting && this.currentSeat?.id === data?.seatId) {
+      this.standUp();
+    }
+  };
+
+  // =========================================================================
+  // 30-MINUTE INACTIVITY AFK ENGINE
+  // =========================================================================
+
+  public handleUserActivity = (): void => {
+    this.lastUserActivityTime = Date.now();
+    if (this.isAfk) {
+      this.wakeFromAfk();
+    }
+  };
+
+  public triggerAfk(reason: string = 'inactive'): void {
+    if (this.isAfk) return;
+    this.isAfk = true;
+
+    // Stand up if sitting
+    if (this.isSitting) {
+      this.standUp();
+    }
+
+    // Teleport to AFK Lounge room center
+    const afkX = 630;
+    const afkY = 1075;
+    this.player.setPosition(afkX, afkY);
+    if (this.player.body) {
+      (this.player.body as Phaser.Physics.Arcade.Body).reset(afkX, afkY);
+    }
+    this.player.setVelocity(0, 0);
+    this.player.play(`${this.playerArchetypeKey}-idle-south`);
+
+    // Update multiplayer presence status
+    multiplayerService.sendPresenceStatus('afk');
+
+    // Update floating nametag to show [AFK]
+    this.updateLocalPlayerNametag('afk');
+
+    // Broadcast zone change
+    this.updateCurrentZone(true);
+
+    this.showTopBanner(
+      'Status: AFK (Inaktif 30 Menit)',
+      'Karakter Anda dipindahkan ke AFK Room. Gerakkan mouse atau tombol keyboard untuk kembali aktif.'
+    );
+
+    EventBus.emit(GAME_EVENTS.AUTO_AFK_TRIGGERED);
+  }
+
+  public wakeFromAfk(): void {
+    if (!this.isAfk) return;
+    this.isAfk = false;
+    this.lastUserActivityTime = Date.now();
+
+    multiplayerService.sendPresenceStatus('online');
+    this.updateLocalPlayerNametag('online');
+
+    this.showTopBanner('Kembali Online!', 'Selamat datang kembali di aktivitas kantor virtual.');
+  }
+
   shutdown(): void {
     if (this.focusTimeoutId) {
       window.clearTimeout(this.focusTimeoutId);
@@ -2201,6 +2582,14 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.off(GAME_EVENTS.REMOTE_PLAYER_MOVED, this.handleRemotePlayerMoved, this);
     EventBus.off(GAME_EVENTS.REMOTE_PLAYER_LEFT, this.handleRemotePlayerLeft, this);
     EventBus.off(GAME_EVENTS.REMOTE_PLAYER_STATUS, this.handleRemotePlayerStatus, this);
+    EventBus.off(GAME_EVENTS.SEAT_OCCUPIED, this.handleSeatOccupied, this);
+    EventBus.off(GAME_EVENTS.SEAT_VACATED, this.handleSeatVacated, this);
+    EventBus.off(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
+    EventBus.off(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
+
+    this.input.off('pointermove', this.handleUserActivity, this);
+    this.input.off('pointerdown', this.handleUserActivity, this);
+    this.input.keyboard?.off('keydown', this.handleUserActivity, this);
     if (this.activeChatBubble && this.activeChatBubble.container.active) {
       this.activeChatBubble.container.destroy();
       this.activeChatBubble = null;

@@ -27,6 +27,8 @@ import {
   PhoneOff,
   Smile,
   Megaphone,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import {
   MeetingSession,
@@ -65,6 +67,58 @@ export const VideoConferenceModal: React.FC<Props> = ({
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCamOn, setIsCamOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  // Discord-style Screen Share Zoom & Pan Controls
+  const [screenZoom, setScreenZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0 });
+
+  const handleScreenWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setScreenZoom((prev) => {
+      const next = e.deltaY < 0 ? Math.min(3.0, prev + 0.25) : Math.max(1.0, prev - 0.25);
+      if (next === 1.0) setPanOffset({ x: 0, y: 0 });
+      return next;
+    });
+  };
+
+  const handleScreenMouseDown = (e: React.MouseEvent) => {
+    if (screenZoom <= 1.0) return;
+    setIsPanning(true);
+    panStartRef.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+  };
+
+  const handleScreenMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning || screenZoom <= 1.0) return;
+    setPanOffset({
+      x: e.clientX - panStartRef.current.x,
+      y: e.clientY - panStartRef.current.y,
+    });
+  };
+
+  const handleScreenMouseUp = () => setIsPanning(false);
+
+  const handleResetZoom = () => {
+    setScreenZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const handleZoomIn = () => setScreenZoom((prev) => Math.min(3.0, prev + 0.25));
+  const handleZoomOut = () =>
+    setScreenZoom((prev) => {
+      const next = Math.max(1.0, prev - 0.25);
+      if (next === 1.0) setPanOffset({ x: 0, y: 0 });
+      return next;
+    });
+
+  const handleToggleZoom = () => {
+    if (screenZoom > 1.0) {
+      handleResetZoom();
+    } else {
+      setScreenZoom(1.75);
+    }
+  };
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -282,6 +336,11 @@ export const VideoConferenceModal: React.FC<Props> = ({
     return activeBreakout?.participants.some((bp) => bp.name.includes(p.username) || bp.name.includes(p.fullName));
   });
 
+  // Remote screen sharer detection
+  const remoteScreenSharer = visibleRemotePlayers.find((p) => Boolean(p.mediaState?.isScreenSharing));
+  const hasActiveScreenShare = isScreenSharing || Boolean(remoteScreenSharer);
+  const remoteScreenStream = remoteScreenSharer ? remoteStreams.get(remoteScreenSharer.socketId) : null;
+
   return (
     <div
       className={`fixed inset-0 z-50 flex flex-col bg-[#0b1120] text-slate-100 select-none animate-in fade-in duration-200 ${
@@ -407,7 +466,175 @@ export const VideoConferenceModal: React.FC<Props> = ({
         <div className="flex-1 w-full min-h-0 relative overflow-hidden p-3 flex gap-3">
           {/* Main Participant Video Stage */}
           <div className="flex-1 w-full h-full relative overflow-y-auto rounded-xl">
-            {viewMode === 'gallery' ? (
+            {hasActiveScreenShare ? (
+              <div className="w-full h-full flex flex-col gap-3">
+                {/* Discord Stage / Screen Share Viewport with Interactive Zoom & Pan */}
+                <div
+                  className="flex-1 w-full bg-[#111214] rounded-xl overflow-hidden border border-[#2b2d31] relative flex items-center justify-center select-none"
+                  onWheel={handleScreenWheel}
+                  onMouseDown={handleScreenMouseDown}
+                  onMouseMove={handleScreenMouseMove}
+                  onMouseUp={handleScreenMouseUp}
+                  onMouseLeave={handleScreenMouseUp}
+                  onDoubleClick={handleToggleZoom}
+                >
+                  {/* Top Stream Status Bar */}
+                  <div className="absolute top-3 left-3 z-20 flex items-center gap-2 pointer-events-none">
+                    <span className="px-2 py-0.5 bg-[#f23f43] text-white text-[10px] font-black rounded tracking-wider flex items-center gap-1 shadow-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      LIVE
+                    </span>
+                    <div className="px-2.5 py-1 bg-[#1e1f22]/90 backdrop-blur-md border border-[#2b2d31] rounded-md text-xs font-bold text-white shadow-sm">
+                      {isScreenSharing
+                        ? `${currentUser.fullName}'s Screen`
+                        : `${remoteScreenSharer?.fullName || 'Rekan'}'s Screen`}
+                    </div>
+                    <span className="px-2 py-0.5 bg-[#2b2d31]/80 text-[#b5bac1] text-[10px] font-mono rounded">
+                      1080p 60FPS
+                    </span>
+                  </div>
+
+                  {/* Screen Video Container with Zoom and Pan */}
+                  <div
+                    className="w-full h-full flex items-center justify-center overflow-hidden"
+                    style={{
+                      cursor: screenZoom > 1.0 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                    }}
+                  >
+                    {isScreenSharing && localStream ? (
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-75"
+                        style={{
+                          transform: `scale(${screenZoom}) translate(${panOffset.x / screenZoom}px, ${panOffset.y / screenZoom}px)`,
+                        }}
+                      />
+                    ) : remoteScreenStream ? (
+                      <video
+                        autoPlay
+                        playsInline
+                        ref={(el) => {
+                          if (el && remoteScreenStream && el.srcObject !== remoteScreenStream) {
+                            el.srcObject = remoteScreenStream;
+                            el.play().catch(() => {});
+                          }
+                        }}
+                        className="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-75"
+                        style={{
+                          transform: `scale(${screenZoom}) translate(${panOffset.x / screenZoom}px, ${panOffset.y / screenZoom}px)`,
+                        }}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center p-6 text-[#949ba4]">
+                        <ScreenShare className="w-12 h-12 mb-2 text-[#5865F2] animate-bounce" />
+                        <p className="text-sm font-semibold text-white">Layar Sedang Dibagikan</p>
+                        <p className="text-xs text-[#949ba4] mt-1">
+                          Scroll mouse atau gunakan tombol untuk zoom & pan seperti Discord.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Discord-style Floating Zoom HUD */}
+                  <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1 bg-[#1e1f22]/95 border border-[#2b2d31] p-1 rounded-lg shadow-xl backdrop-blur-md">
+                    <button
+                      type="button"
+                      onClick={handleZoomOut}
+                      disabled={screenZoom <= 1.0}
+                      className="p-1.5 text-[#dbdee1] hover:text-white hover:bg-[#35373c] disabled:opacity-40 disabled:hover:bg-transparent rounded cursor-pointer transition-colors"
+                      title="Zoom Out (Scroll Down)"
+                    >
+                      <ZoomOut className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="px-2 text-xs font-mono font-bold text-white min-w-[48px] text-center select-none">
+                      {Math.round(screenZoom * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleZoomIn}
+                      disabled={screenZoom >= 3.0}
+                      className="p-1.5 text-[#dbdee1] hover:text-white hover:bg-[#35373c] disabled:opacity-40 disabled:hover:bg-transparent rounded cursor-pointer transition-colors"
+                      title="Zoom In (Scroll Up)"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="w-[1px] h-4 bg-[#35373c] mx-0.5" />
+                    <button
+                      type="button"
+                      onClick={handleResetZoom}
+                      className="px-2 py-1 text-[10px] font-bold text-[#dbdee1] hover:text-white hover:bg-[#35373c] rounded cursor-pointer transition-colors"
+                      title="Reset / Fit Layar"
+                    >
+                      Fit
+                    </button>
+                  </div>
+
+                  {/* Floating Drag Hint */}
+                  {screenZoom > 1.0 && (
+                    <div className="absolute bottom-3 left-3 z-20 px-2.5 py-1 bg-black/70 backdrop-blur-md text-[11px] text-[#dbdee1] rounded border border-white/10 pointer-events-none">
+                      Drag mouse untuk geser layar • Double click untuk reset
+                    </div>
+                  )}
+                </div>
+
+                {/* Discord Bottom Filmstrip */}
+                <div className="h-24 flex items-center gap-2 overflow-x-auto p-1.5 bg-[#1e1f22] rounded-xl border border-[#2b2d31] flex-shrink-0">
+                  <div
+                    className={`h-full aspect-video bg-[#2b2d31] rounded-lg overflow-hidden border flex items-center justify-center flex-shrink-0 relative transition-all ${
+                      isLocalSpeaking
+                        ? 'border-[#23a55a] ring-2 ring-[#23a55a] shadow-[0_0_12px_rgba(35,165,90,0.6)]'
+                        : 'border-[#313338]'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[#1e1f22] overflow-hidden">
+                      <img src={currentUser.avatar} alt="" className="w-full h-full object-contain pixelated" />
+                    </div>
+                    <span className="absolute bottom-1 left-1.5 text-[10px] bg-black/70 px-1 rounded text-white truncate max-w-[80%] font-semibold">
+                      {currentUser.fullName.split(' ')[0]} (Anda)
+                    </span>
+                    <div className="absolute bottom-1 right-1">
+                      {isMicOn ? (
+                        <span className="w-2 h-2 rounded-full bg-[#23a55a] block" />
+                      ) : (
+                        <MicOff className="w-2.5 h-2.5 text-[#f23f43]" />
+                      )}
+                    </div>
+                  </div>
+
+                  {visibleRemotePlayers.map((p) => {
+                    const isSpeaking = Boolean(p.mediaState?.isSpeaking);
+                    const isMic = Boolean(p.mediaState?.isMicOn);
+                    return (
+                      <div
+                        key={p.socketId}
+                        className={`h-full aspect-video bg-[#2b2d31] rounded-lg overflow-hidden border flex items-center justify-center flex-shrink-0 relative transition-all ${
+                          isSpeaking
+                            ? 'border-[#23a55a] ring-2 ring-[#23a55a] shadow-[0_0_12px_rgba(35,165,90,0.6)]'
+                            : 'border-[#313338]'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-[#1e1f22] overflow-hidden">
+                          <img src={p.avatar} alt="" className="w-full h-full object-contain pixelated" />
+                        </div>
+                        <span className="absolute bottom-1 left-1.5 text-[10px] bg-black/70 px-1 rounded text-white truncate max-w-[80%] font-semibold">
+                          {p.fullName.split(' ')[0]}
+                        </span>
+                        <div className="absolute bottom-1 right-1">
+                          {isMic ? (
+                            <span className="w-2 h-2 rounded-full bg-[#23a55a] block" />
+                          ) : (
+                            <MicOff className="w-2.5 h-2.5 text-[#f23f43]" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : viewMode === 'gallery' ? (
               <div
                 className={`w-full h-full grid gap-3 p-1 ${
                   1 + visibleRemotePlayers.length <= 1

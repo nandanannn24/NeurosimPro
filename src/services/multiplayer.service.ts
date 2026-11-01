@@ -222,6 +222,23 @@ class MultiplayerService {
       EventBus.emit(GAME_EVENTS.REMOTE_PLAYER_LEFT, data);
       this.broadcastOnlinePlayersList();
     });
+
+    // 10. Seat Claim & Occupancy (Anti-stacking)
+    this.socket.on('s:seat_occupied', (data: any) => {
+      EventBus.emit(GAME_EVENTS.SEAT_OCCUPIED, data);
+    });
+
+    this.socket.on('s:seat_vacated', (data: any) => {
+      EventBus.emit(GAME_EVENTS.SEAT_VACATED, data);
+    });
+
+    this.socket.on('s:seats_state', (data: any) => {
+      EventBus.emit(GAME_EVENTS.SEATS_STATE, data);
+    });
+
+    this.socket.on('s:seat_denied', (data: any) => {
+      EventBus.emit(GAME_EVENTS.SEAT_DENIED, data);
+    });
   }
 
   private broadcastOnlinePlayersList(): void {
@@ -256,6 +273,11 @@ class MultiplayerService {
   }
 
   public sendStatus(status: UserStatus): void {
+    if (!this.socket || !this.isConnected) return;
+    this.socket.emit('c:status', { status });
+  }
+
+  public sendPresenceStatus(status: string): void {
     if (!this.socket || !this.isConnected) return;
     this.socket.emit('c:status', { status });
   }
@@ -310,6 +332,23 @@ class MultiplayerService {
     return () => {
       this.socket?.off(eventName, handler);
     };
+  }
+
+  public claimSeat(seatId: string, seatName: string): void {
+    if (!this.socket || !this.isConnected) return;
+    this.socket.emit('c:seat_claim', {
+      seatId,
+      seatName,
+      lobbyId: this.currentRoomId,
+    });
+  }
+
+  public vacateSeat(seatId: string): void {
+    if (!this.socket || !this.isConnected) return;
+    this.socket.emit('c:seat_vacate', {
+      seatId,
+      lobbyId: this.currentRoomId,
+    });
   }
 
   public getOnlinePlayers(): PlayerPresence[] {
