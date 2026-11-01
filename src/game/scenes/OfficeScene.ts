@@ -73,7 +73,7 @@ const MAP_W = 2752;
 const MAP_H = 1536;
 const PLAYER_SPEED = 185;
 const NPC_INTERACT_DIST = 130;
-const TODO_INTERACT_DIST = 80;
+const TODO_INTERACT_DIST = 105;
 
 // Proportional scales for 64×64 sprites onto 2752×1536 map
 // Prominent, chunky, and detailed (2.0 scale)
@@ -244,6 +244,10 @@ export class OfficeScene extends Phaser.Scene {
   private isAfk: boolean = false;
   private readonly AFK_TIMEOUT_MS: number = 30 * 60 * 1000; // 30 Menit
 
+  // Meeting Room Max 7 Capacity Door Barrier
+  private meetingDoorBarrier!: Phaser.GameObjects.Rectangle;
+  private meetingDoorVisual!: Phaser.GameObjects.Graphics;
+
   // Desk Nametags (20 Workstations)
   private deskTags: Map<
     string,
@@ -359,10 +363,15 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.on(GAME_EVENTS.REMOTE_PLAYER_MOVED, this.handleRemotePlayerMoved, this);
     EventBus.on(GAME_EVENTS.REMOTE_PLAYER_LEFT, this.handleRemotePlayerLeft, this);
     EventBus.on(GAME_EVENTS.REMOTE_PLAYER_STATUS, this.handleRemotePlayerStatus, this);
+    EventBus.on(GAME_EVENTS.REMOTE_PLAYER_CHARACTER_UPDATED, this.handleRemotePlayerCharacterUpdated, this);
     EventBus.on(GAME_EVENTS.SEAT_OCCUPIED, this.handleSeatOccupied, this);
     EventBus.on(GAME_EVENTS.SEAT_VACATED, this.handleSeatVacated, this);
     EventBus.on(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
     EventBus.on(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('neurosim_user_profile_updated', this.handleUserProfileUpdated);
+    }
 
     // Track user input for 30-minute AFK timeout
     this.input.on('pointermove', this.handleUserActivity, this);
@@ -524,6 +533,9 @@ export class OfficeScene extends Phaser.Scene {
       this.playerNametagContainer.setPosition(this.player.x, this.player.y);
       this.playerNametagContainer.setDepth(this.player.y + 1000);
     }
+
+    // Meeting Room Capacity & Door Lock check
+    this.updateMeetingRoomCapacity();
 
     // Inactivity AFK auto-move check: 30 minutes without keyboard or mouse input
     if (!this.isAfk && Date.now() - this.lastUserActivityTime >= this.AFK_TIMEOUT_MS) {
@@ -868,6 +880,12 @@ export class OfficeScene extends Phaser.Scene {
         zoneId: detected.id,
         name: detected.name,
       });
+
+      // Auto turn on casual dock camera when entering Meeting Room!
+      if (detected.id === 'room-meeting') {
+        EventBus.emit('neurosim_auto_oncam', true);
+      }
+
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('neurosim_current_zone_id', detected.id);
       }
@@ -967,6 +985,16 @@ export class OfficeScene extends Phaser.Scene {
     // Solid 2: Between Pantry & Meeting Room Doors (y: 445..700)
     this.addStaticWall(1166, 573, 56, 255);
 
+    // Meeting Room Capacity Barrier (Auto-locks door when meeting room has 7 people)
+    this.meetingDoorBarrier = this.add.rectangle(1166, 777, 44, 155, 0xef4444, 0);
+    this.physics.add.existing(this.meetingDoorBarrier, true);
+    (this.meetingDoorBarrier.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
+    (this.meetingDoorBarrier.body as Phaser.Physics.Arcade.StaticBody).enable = false; // Initially open
+    this.obstacles.add(this.meetingDoorBarrier);
+
+    this.meetingDoorVisual = this.add.graphics();
+    this.meetingDoorVisual.setDepth(777 + 50);
+
     // Solid 3: Between Meeting Room & AFK Room Doors (y: 855..1115)
     this.addStaticWall(1166, 985, 56, 260);
 
@@ -994,6 +1022,37 @@ export class OfficeScene extends Phaser.Scene {
 
     // Bottom wall right of door (x: 2250..2600 at y = 518)
     this.addStaticWall(2425, 518, 350, 44);
+  }
+
+  /**
+   * Monitor Meeting Room capacity (Max 7 seats/occupants).
+   * When capacity reaches 7, automatically locks the doorway to prevent further entry.
+   */
+  public updateMeetingRoomCapacity(): void {
+    if (!this.meetingDoorBarrier || !this.meetingDoorBarrier.body) return;
+
+    let count = 0;
+    if (this.player && this.player.x >= 100 && this.player.x <= 1166 && this.player.y >= 518 && this.player.y <= 970) {
+      count++;
+    }
+    for (const [_, record] of this.remotePlayers) {
+      if (record.targetX >= 100 && record.targetX <= 1166 && record.targetY >= 518 && record.targetY <= 970) {
+        count++;
+      }
+    }
+
+    const isFull = count >= 7;
+    (this.meetingDoorBarrier.body as Phaser.Physics.Arcade.StaticBody).enable = isFull;
+
+    if (this.meetingDoorVisual) {
+      this.meetingDoorVisual.clear();
+      if (isFull) {
+        this.meetingDoorVisual.fillStyle(0x7f1d1d, 0.92);
+        this.meetingDoorVisual.lineStyle(2, 0xef4444, 1);
+        this.meetingDoorVisual.fillRoundedRect(1154, 705, 24, 145, 4);
+        this.meetingDoorVisual.strokeRoundedRect(1154, 705, 24, 145, 4);
+      }
+    }
   }
 
   private addStaticWall(x: number, y: number, w: number, h: number): void {
@@ -1255,7 +1314,13 @@ export class OfficeScene extends Phaser.Scene {
     // Border Greenery Accents
     this.addSolidProp('plant-large', 2550, 590, 52, 52);
     this.addSolidProp('plant-large', 2550, 1330, 52, 52);
-    this.addDecorativeProp('floor-lamp', 2340, 880);
+
+    // Meja Kerja Kantoran Tambahan (Menggantikan floor lamp di area kerja)
+    this.addSolidDesk(2340, 875);
+    this.add.image(2340, 875 - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(875 + 46);
+    this.addSolidChair('office-chair-north', 2340, 875 + 68, 38, 30, 875 + 68 + 44);
+    this.addSeat('Meja Kerja Ekstra', 2340, 875 + 68, 'north', 'chair', 0, -18, 'desk-extra');
+    this.createDeskNametag('desk-extra', 2340, 875 - 32, 'MEJA KERJA');
   }
 
   /**
@@ -1415,26 +1480,26 @@ export class OfficeScene extends Phaser.Scene {
   private buildCorridorElements(): void {
     // Mounted against the top corridor wall (x = 1450, y = 140)
 
-    // 1. Board Outer Wooden Frame
+    // 1. Board Outer Wooden Frame (Enlarged)
     this.add
-      .rectangle(TODO_POS.x, TODO_POS.y, 148, 76, 0x533e3b)
+      .rectangle(TODO_POS.x, TODO_POS.y, 212, 106, 0x533e3b)
       .setDepth(TODO_POS.y + 1);
 
-    // 2. Cork/Chalkboard Surface
+    // 2. Cork/Chalkboard Surface (Enlarged)
     this.add
-      .rectangle(TODO_POS.x, TODO_POS.y, 138, 66, 0x1e293b)
+      .rectangle(TODO_POS.x, TODO_POS.y, 198, 92, 0x1e293b)
       .setDepth(TODO_POS.y + 2);
 
-    // 3. Header Title Badge
+    // 3. Header Title Badge (Enlarged)
     this.add
-      .rectangle(TODO_POS.x, TODO_POS.y - 19, 128, 18, 0x355c5a)
+      .rectangle(TODO_POS.x, TODO_POS.y - 27, 184, 22, 0x355c5a)
       .setStrokeStyle(1.5, 0xe0b65d)
       .setDepth(TODO_POS.y + 3);
 
     this.add
-      .text(TODO_POS.x, TODO_POS.y - 19, 'PAPAN AGENDA KERJA', {
+      .text(TODO_POS.x, TODO_POS.y - 27, '★ PAPAN AGENDA KERJA ★', {
         fontFamily: 'monospace',
-        fontSize: '9px',
+        fontSize: '11px',
         color: '#fff9eb',
         fontStyle: 'bold',
       })
@@ -1445,20 +1510,20 @@ export class OfficeScene extends Phaser.Scene {
     this.add
       .text(
         TODO_POS.x,
-        TODO_POS.y + 9,
+        TODO_POS.y + 13,
         '• Ruang Rapat: Konferensi & Screen Share\n• Ruang AFK: Relaksasi & Auto-AFK\n• Workstation: 20 Meja Kerja Dedicated',
         {
           fontFamily: 'system-ui, sans-serif',
-          fontSize: '9px',
+          fontSize: '10.5px',
           color: '#e2e8f0',
-          lineSpacing: 2,
+          lineSpacing: 4,
         }
       )
       .setOrigin(0.5)
       .setDepth(TODO_POS.y + 4);
 
     // 5. Impenetrable Physics Barrier for the Board (Player cannot walk through wall/board!)
-    const boardCol = this.add.rectangle(TODO_POS.x, TODO_POS.y, 150, 72, 0x000000, 0);
+    const boardCol = this.add.rectangle(TODO_POS.x, TODO_POS.y, 214, 104, 0x000000, 0);
     this.physics.add.existing(boardCol, true);
     (boardCol.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
     this.obstacles.add(boardCol);
@@ -1491,13 +1556,14 @@ export class OfficeScene extends Phaser.Scene {
 
   private buildPlayer(): void {
     let initialKey = 'char-resident';
+    let savedCfg: any = null;
     if (typeof localStorage !== 'undefined') {
       try {
         const saved = localStorage.getItem('neurosim_character_config');
         if (saved) {
-          const cfg = JSON.parse(saved);
-          if (cfg?.archetype && this.textures.exists(`char-${cfg.archetype}`)) {
-            initialKey = `char-${cfg.archetype}`;
+          savedCfg = JSON.parse(saved);
+          if (savedCfg?.archetype && savedCfg.archetype !== 'custom' && this.textures.exists(`char-${savedCfg.archetype}`)) {
+            initialKey = `char-${savedCfg.archetype}`;
           }
         }
       } catch {}
@@ -1514,6 +1580,11 @@ export class OfficeScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.play(`${this.playerArchetypeKey}-idle-north`);
     this.player.setDepth((this.player.body as Phaser.Physics.Arcade.Body).bottom);
+
+    // If custom modular character was saved, generate and apply LPC texture immediately
+    if (savedCfg?.archetype === 'custom') {
+      this.handleUpdatePlayerCharacter(savedCfg);
+    }
 
     // Build Floating Local Player Nametag & Status HUD
     this.buildLocalPlayerNametag();
@@ -1678,6 +1749,24 @@ export class OfficeScene extends Phaser.Scene {
     // Emit seat claim to server
     multiplayerService.claimSeat(seat.id, seat.name);
 
+    // If sitting at workstation desk -> auto set status to 'work' (Bekerja) and turn on camera!
+    const isWorkstation = seat.id.startsWith('desk-') || seat.name.startsWith('Meja');
+    if (isWorkstation) {
+      this.playerCurrentStatus = 'work';
+      multiplayerService.sendStatus('busy');
+      multiplayerService.sendPresenceStatus('work');
+      EventBus.emit('neurosim_auto_oncam', true);
+      this.updateLocalPlayerNametag('work');
+    }
+
+    // If sitting on Meeting Room chair -> activate formal video conference meeting!
+    const isMeetingChair = seat.name.includes('Rapat') || seat.name.includes('Meeting');
+    if (isMeetingChair) {
+      this.playerCurrentStatus = 'meeting';
+      multiplayerService.sendPresenceStatus('meeting');
+      EventBus.emit(GAME_EVENTS.TOGGLE_GOOGLE_MEET, true);
+    }
+
     // Broadcast status duduk ke pemain lain di room online secara realtime
     multiplayerService.sendMovement({
       x: Math.round(seat.sitX),
@@ -1700,6 +1789,17 @@ export class OfficeScene extends Phaser.Scene {
     multiplayerService.vacateSeat(seat.id);
     seat.occupiedBy = null;
     this.restoreDeskNametagDefault(seat.id);
+
+    const wasMeetingChair = seat.name.includes('Rapat') || seat.name.includes('Meeting');
+    if (wasMeetingChair) {
+      EventBus.emit(GAME_EVENTS.TOGGLE_GOOGLE_MEET, false);
+    }
+
+    // Revert work status back to online / available
+    this.playerCurrentStatus = 'online';
+    multiplayerService.sendStatus('available');
+    multiplayerService.sendPresenceStatus('online');
+    this.updateLocalPlayerNametag('online');
 
     // Exit strictly BEHIND the chair / into open walkway (prevents clipping through desks/tables!)
     let exitX = seat.x;
@@ -1932,7 +2032,7 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     // Nametag & Status indicator
-    const displayName = presence.fullName || presence.username || 'Tamu';
+    const displayName = presence.username || presence.fullName || 'Tamu';
     const nameText = this.add.text(0, 0, displayName, {
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       fontSize: '11px',
@@ -1996,6 +2096,69 @@ export class OfficeScene extends Phaser.Scene {
     };
 
     this.remotePlayers.set(presence.socketId, record);
+
+    // If remote player is using custom modular LPC, render their full custom appearance
+    if (presence.characterConfig && (archetype === 'custom' || presence.characterConfig.archetype === 'custom')) {
+      const customKey = `char-remote-${presence.socketId}`;
+      generateFullLpcSpritesheet(presence.characterConfig).then((canvas) => {
+        if (!this.sys || !this.sys.isActive()) return;
+        if (this.textures.exists(customKey)) {
+          this.textures.remove(customKey);
+        }
+        this.textures.addCanvas(customKey, canvas);
+        this.createCustomAnimations(customKey);
+        if (record && record.sprite && record.sprite.active) {
+          record.archetypeKey = customKey;
+          record.sprite.setTexture(customKey);
+          record.sprite.setScale(1.52);
+          const currentAnim = record.isSitting
+            ? `${customKey}-sit-${record.direction}`
+            : (record.isMoving ? `${customKey}-walk-${record.direction}` : `${customKey}-idle-${record.direction}`);
+          if (this.anims.exists(currentAnim)) {
+            record.sprite.play(currentAnim, true);
+          }
+        }
+      }).catch((err) => console.warn('Could not generate remote custom LPC sprite:', err));
+    }
+  };
+
+  private handleRemotePlayerCharacterUpdated = (data: { socketId: string; archetype: string; characterConfig: any }): void => {
+    if (!data || !data.socketId) return;
+    const record = this.remotePlayers.get(data.socketId);
+    if (!record || !record.sprite || !record.sprite.active) return;
+
+    record.presence.archetype = data.archetype;
+    record.presence.characterConfig = data.characterConfig;
+
+    if (data.archetype === 'custom' && data.characterConfig) {
+      const customKey = `char-remote-${data.socketId}`;
+      generateFullLpcSpritesheet(data.characterConfig).then((canvas) => {
+        if (!this.sys || !this.sys.isActive()) return;
+        if (this.textures.exists(customKey)) {
+          this.textures.remove(customKey);
+        }
+        this.textures.addCanvas(customKey, canvas);
+        this.createCustomAnimations(customKey);
+        record.archetypeKey = customKey;
+        record.sprite.setTexture(customKey);
+        record.sprite.setScale(1.52);
+        const anim = record.isSitting
+          ? `${customKey}-sit-${record.direction}`
+          : (record.isMoving ? `${customKey}-walk-${record.direction}` : `${customKey}-idle-${record.direction}`);
+        if (this.anims.exists(anim)) record.sprite.play(anim, true);
+      }).catch((e) => console.warn('Could not update remote LPC sprite:', e));
+    } else {
+      const newKey = `char-${data.archetype || 'resident'}`;
+      if (this.textures.exists(newKey)) {
+        record.archetypeKey = newKey;
+        record.sprite.setTexture(newKey);
+        record.sprite.setScale(CHAR_SCALE);
+        const anim = record.isSitting
+          ? `${newKey}-sit-${record.direction}`
+          : (record.isMoving ? `${newKey}-walk-${record.direction}` : `${newKey}-idle-${record.direction}`);
+        if (this.anims.exists(anim)) record.sprite.play(anim, true);
+      }
+    }
   };
 
   private handleRemotePlayerMoved = (data: PlayerMovementPacket): void => {
@@ -2325,10 +2488,10 @@ export class OfficeScene extends Phaser.Scene {
     let displayName = 'Pengguna';
     if (typeof localStorage !== 'undefined') {
       try {
-        const savedUser = localStorage.getItem('neurosim_user');
+        const savedUser = localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user');
         if (savedUser) {
           const u = JSON.parse(savedUser);
-          displayName = u.fullName || u.username || 'Pengguna';
+          displayName = u.username || u.fullName || 'Pengguna';
         }
       } catch {}
     }
@@ -2366,6 +2529,22 @@ export class OfficeScene extends Phaser.Scene {
       .setDepth(this.player.y + 1000);
     this.playerNametagContainer.add([this.playerNameBg, this.playerStatusDot, this.playerNameText]);
   }
+
+  public setLocalPlayerName(name: string): void {
+    if (!name || !name.trim()) return;
+    this.playerDisplayName = name.trim();
+    if (this.playerNameText && this.playerNameText.active) {
+      this.updateLocalPlayerNametag(this.playerCurrentStatus || 'online');
+    }
+  }
+
+  public handleUserProfileUpdated = (e: any): void => {
+    const user = e?.detail || e;
+    if (user) {
+      const name = user.username || user.fullName;
+      if (name) this.setLocalPlayerName(name);
+    }
+  };
 
   public updateLocalPlayerNametag(status: string): void {
     this.playerCurrentStatus = status;
@@ -2514,31 +2693,95 @@ export class OfficeScene extends Phaser.Scene {
       this.standUp();
     }
 
-    // Teleport to AFK Lounge room center
-    const afkX = 630;
-    const afkY = 1075;
-    this.player.setPosition(afkX, afkY);
-    if (this.player.body) {
-      (this.player.body as Phaser.Physics.Arcade.Body).reset(afkX, afkY);
-    }
-    this.player.setVelocity(0, 0);
-    this.player.play(`${this.playerArchetypeKey}-idle-south`);
-
-    // Update multiplayer presence status
-    multiplayerService.sendPresenceStatus('afk');
-
-    // Update floating nametag to show [AFK]
-    this.updateLocalPlayerNametag('afk');
-
-    // Broadcast zone change
-    this.updateCurrentZone(true);
-
     this.showTopBanner(
       'Status: AFK (Inaktif 30 Menit)',
-      'Karakter Anda dipindahkan ke AFK Room. Gerakkan mouse atau tombol keyboard untuk kembali aktif.'
+      'Karakter Anda berjalan otomatis ke AFK Room. Gerakkan mouse atau tombol keyboard untuk kembali aktif.'
     );
 
-    EventBus.emit(GAME_EVENTS.AUTO_AFK_TRIGGERED);
+    // Disable manual input during autonomous walk
+    this.lockPlayer();
+    if (this.player.body) {
+      this.player.body.enable = false;
+    }
+
+    // Waypoints for autonomous walk from workstation area into AFK room:
+    // 1. Move to open corridor center aisle (x = 1380, y = player.y)
+    // 2. Align with AFK doorway (x = 1380, y = 1180)
+    // 3. Walk west through AFK doorway (x = 1170, y = 1180)
+    // 4. Reach AFK lounge center (x = 630, y = 1075)
+    const waypoints = [
+      { x: 1380, y: this.player.y },
+      { x: 1380, y: 1180 },
+      { x: 1170, y: 1180 },
+      { x: 630, y: 1075 },
+    ];
+
+    let currentWpIndex = 0;
+    const walkNextWaypoint = () => {
+      if (currentWpIndex >= waypoints.length) {
+        // Arrived at AFK Room
+        if (this.player.body) {
+          this.player.body.enable = true;
+          (this.player.body as Phaser.Physics.Arcade.Body).reset(630, 1075);
+        }
+        this.player.setVelocity(0, 0);
+        this.player.play(`${this.playerArchetypeKey}-idle-south`, true);
+        this.handleCloseDialog();
+
+        multiplayerService.sendPresenceStatus('afk');
+        this.updateLocalPlayerNametag('afk');
+        this.updateCurrentZone(true);
+        EventBus.emit(GAME_EVENTS.AUTO_AFK_TRIGGERED);
+        return;
+      }
+
+      const wp = waypoints[currentWpIndex++];
+      const dx = wp.x - this.player.x;
+      const dy = wp.y - this.player.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < 8) {
+        walkNextWaypoint();
+        return;
+      }
+
+      let animDir = 'south';
+      if (Math.abs(dx) > Math.abs(dy)) {
+        animDir = dx > 0 ? 'east' : 'west';
+      } else {
+        animDir = dy > 0 ? 'south' : 'north';
+      }
+      this.player.play(`${this.playerArchetypeKey}-walk-${animDir}`, true);
+      this.lastDirection = animDir;
+
+      const duration = Math.max(250, (dist / 170) * 1000);
+      this.tweens.add({
+        targets: this.player,
+        x: wp.x,
+        y: wp.y,
+        duration,
+        ease: 'Linear',
+        onUpdate: () => {
+          this.player.setDepth(this.player.y);
+          if (this.playerNametagContainer && this.playerNametagContainer.active) {
+            this.playerNametagContainer.setPosition(this.player.x, this.player.y);
+            this.playerNametagContainer.setDepth(this.player.y + 1000);
+          }
+          multiplayerService.sendMovement({
+            x: Math.round(this.player.x),
+            y: Math.round(this.player.y),
+            direction: animDir as any,
+            anim: `${this.playerArchetypeKey}-walk-${animDir}`,
+            isMoving: true,
+            isSitting: false,
+            zone: this.currentZoneId || 'koridor',
+          });
+        },
+        onComplete: walkNextWaypoint,
+      });
+    };
+
+    walkNextWaypoint();
   }
 
   public wakeFromAfk(): void {
@@ -2582,10 +2825,15 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.off(GAME_EVENTS.REMOTE_PLAYER_MOVED, this.handleRemotePlayerMoved, this);
     EventBus.off(GAME_EVENTS.REMOTE_PLAYER_LEFT, this.handleRemotePlayerLeft, this);
     EventBus.off(GAME_EVENTS.REMOTE_PLAYER_STATUS, this.handleRemotePlayerStatus, this);
+    EventBus.off(GAME_EVENTS.REMOTE_PLAYER_CHARACTER_UPDATED, this.handleRemotePlayerCharacterUpdated, this);
     EventBus.off(GAME_EVENTS.SEAT_OCCUPIED, this.handleSeatOccupied, this);
     EventBus.off(GAME_EVENTS.SEAT_VACATED, this.handleSeatVacated, this);
     EventBus.off(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
     EventBus.off(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
+
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('neurosim_user_profile_updated', this.handleUserProfileUpdated);
+    }
 
     this.input.off('pointermove', this.handleUserActivity, this);
     this.input.off('pointerdown', this.handleUserActivity, this);
@@ -2693,71 +2941,87 @@ export class OfficeScene extends Phaser.Scene {
     }
   }
 
-  private handleUpdatePlayerCharacter = (payload: any): void => {
+  private handleUpdatePlayerCharacter = async (payload: any): Promise<void> => {
     if (!this.player) return;
     const config = payload?.config || payload;
 
     const isCustom = config?.archetype === 'custom';
-    const dataUrl =
-      isCustom && typeof localStorage !== 'undefined'
-        ? localStorage.getItem('neurosim_character_spritesheet')
-        : null;
 
-    if (isCustom && dataUrl) {
-      const customKey = 'char-player-custom';
-      const img = new Image();
-      img.src = dataUrl;
-      img.onload = async () => {
-        if (!this.scene.isActive()) return;
-        let finalImg: HTMLImageElement = img;
+    if (isCustom) {
+      let dataUrl =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem('neurosim_character_spritesheet')
+          : null;
 
-        // If cached sheet has old 512px height and we have config, re-composite to 768px!
-        if (img.height < 768 && config) {
-          try {
-            const upgradedCanvas = await generateFullLpcSpritesheet(config);
-            const upgradedDataUrl = upgradedCanvas.toDataURL('image/png');
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem('neurosim_character_spritesheet', upgradedDataUrl);
-            }
-            const upgradedImg = new Image();
-            upgradedImg.src = upgradedDataUrl;
-            await new Promise((resolve) => {
-              upgradedImg.onload = resolve;
-            });
-            finalImg = upgradedImg;
-          } catch (e) {
-            console.warn('Could not upgrade custom spritesheet to 768px:', e);
+      // If no cached spritesheet or needs regeneration, compose it on the fly!
+      if (!dataUrl && config) {
+        try {
+          const generatedCanvas = await generateFullLpcSpritesheet(config);
+          dataUrl = generatedCanvas.toDataURL('image/png');
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('neurosim_character_spritesheet', dataUrl);
           }
+        } catch (e) {
+          console.warn('Could not generate LPC spritesheet on the fly:', e);
         }
+      }
 
-        if (this.textures.exists(customKey)) {
-          this.textures.remove(customKey);
-        }
-        this.textures.addSpriteSheet(customKey, finalImg, {
-          frameWidth: 64,
-          frameHeight: 64,
-        });
+      if (dataUrl) {
+        const customKey = 'char-player-custom';
+        const img = new Image();
+        img.src = dataUrl;
+        img.onload = async () => {
+          if (!this.scene.isActive()) return;
+          let finalImg: HTMLImageElement = img;
 
-        this.createCustomAnimations(customKey);
-        this.playerArchetypeKey = customKey;
-        this.player.setTexture(customKey);
-        // Standardize LPC character height (50px * 1.52 = 76px, matching aligned.png 38px * 2.0 = 76px)
-        this.player.setScale(1.52);
+          // If cached sheet has old 512px height and we have config, re-composite to 768px!
+          if (img.height < 768 && config) {
+            try {
+              const upgradedCanvas = await generateFullLpcSpritesheet(config);
+              const upgradedDataUrl = upgradedCanvas.toDataURL('image/png');
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('neurosim_character_spritesheet', upgradedDataUrl);
+              }
+              const upgradedImg = new Image();
+              upgradedImg.src = upgradedDataUrl;
+              await new Promise((resolve) => {
+                upgradedImg.onload = resolve;
+              });
+              finalImg = upgradedImg;
+            } catch (e) {
+              console.warn('Could not upgrade custom spritesheet to 768px:', e);
+            }
+          }
 
-        const currentDir =
-          this.lastDirection === 'north' ||
-          this.lastDirection === 'south' ||
-          this.lastDirection === 'east' ||
-          this.lastDirection === 'west'
-            ? this.lastDirection
-            : 'south';
+          if (this.textures.exists(customKey)) {
+            this.textures.remove(customKey);
+          }
+          this.textures.addSpriteSheet(customKey, finalImg, {
+            frameWidth: 64,
+            frameHeight: 64,
+          });
 
-        const idleAnim = `${customKey}-idle-${currentDir}`;
-        if (this.anims.exists(idleAnim)) {
-          this.player.play(idleAnim, true);
-        }
-      };
-      return;
+          this.createCustomAnimations(customKey);
+          this.playerArchetypeKey = customKey;
+          this.player.setTexture(customKey);
+          // Standardize LPC character height (50px * 1.52 = 76px, matching aligned.png 38px * 2.0 = 76px)
+          this.player.setScale(1.52);
+
+          const currentDir =
+            this.lastDirection === 'north' ||
+            this.lastDirection === 'south' ||
+            this.lastDirection === 'east' ||
+            this.lastDirection === 'west'
+              ? this.lastDirection
+              : 'south';
+
+          const idleAnim = `${customKey}-idle-${currentDir}`;
+          if (this.anims.exists(idleAnim)) {
+            this.player.play(idleAnim, true);
+          }
+        };
+        return;
+      }
     }
 
     const arch = config?.archetype && config.archetype !== 'custom' ? config.archetype : 'resident';

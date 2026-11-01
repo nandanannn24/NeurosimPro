@@ -140,6 +140,19 @@ export function setupRealtimeSocketIO(httpServer: HTTPServer): SocketIOServer {
       });
     });
 
+    // Realtime Character Customization Sync
+    socket.on('c:character_update', (data: { characterConfig: any }) => {
+      if (!currentRoomId || !playerData || !data || !data.characterConfig) return;
+      playerData.characterConfig = data.characterConfig;
+      playerData.archetype = data.characterConfig.archetype || 'resident';
+      io.to(currentRoomId).emit('s:player_character_updated', {
+        socketId: socket.id,
+        archetype: playerData.archetype,
+        characterConfig: data.characterConfig,
+      });
+      console.log(`[Socket.IO] ${playerData.fullName} mengupdate karakter (@${playerData.username})`);
+    });
+
     // 5. Realtime Camera / Mic / Speaking Media Sync (Google Meet style)
     socket.on('c:media_state', (data: { mediaState: PlayerMediaState }) => {
       if (!currentRoomId || !playerData || !data || !data.mediaState) return;

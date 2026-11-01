@@ -69,6 +69,8 @@ export const GAME_EVENTS = {
   SEATS_STATE: 'seats-state',
   /** Sitting denied because seat is occupied */
   SEAT_DENIED: 'seat-denied',
+  /** Remote player character updated (archetype / custom LPC) */
+  REMOTE_PLAYER_CHARACTER_UPDATED: 'remote-player-character-updated',
   /** Inactivity auto AFK triggered */
   AUTO_AFK_TRIGGERED: 'auto-afk-triggered',
 } as const;
