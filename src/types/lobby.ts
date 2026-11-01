@@ -45,3 +45,4 @@ export interface SeatOccupancyRecord {
   } | null;
   occupiedAt?: number;
 }
+
