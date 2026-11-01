@@ -874,6 +874,7 @@ export const App: React.FC = () => {
                 userAvatar={currentUser?.avatar}
                 onOpenProfile={() => setIsAuthOpen(true)}
                 onOpenCustomizer={() => setIsCustomizerOpen(true)}
+                onOpenMeeting={handleOpenVideoConference}
               />
 
               {/* Slide-in Drawers */}

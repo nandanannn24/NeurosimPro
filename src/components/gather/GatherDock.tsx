@@ -21,6 +21,7 @@ interface Props {
   userAvatar?: string;
   onOpenProfile?: () => void;
   onOpenCustomizer: () => void;
+  onOpenMeeting?: () => void;
 }
 
 const REACTIONS = ['✋', '👍', '👏', '❤️', '💡', '☕', '🔥'];
@@ -43,6 +44,7 @@ export const GatherDock: React.FC<Props> = ({
   userAvatar,
   onOpenProfile,
   onOpenCustomizer,
+  onOpenMeeting,
 }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
@@ -195,6 +197,20 @@ export const GatherDock: React.FC<Props> = ({
         </div>
 
         <div className="w-[1px] h-6 bg-muted/20 mx-0.5" />
+
+        {/* Video Conference Launcher */}
+        {onOpenMeeting && (
+          <button
+            type="button"
+            onClick={onOpenMeeting}
+            aria-label="Buka Video Conference & Breakout Room"
+            title="Video Conference & Breakout Room"
+            className="px-2 sm:px-2.5 py-1.5 rounded border border-teal bg-teal/15 hover:bg-teal text-teal hover:text-soft transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+          >
+            <Video className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="hidden sm:inline">Konferensi</span>
+          </button>
+        )}
 
         {/* Media Toggles */}
         <button
