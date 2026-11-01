@@ -737,15 +737,15 @@ export async function generateFullLpcSpritesheet(
     };
 
     if (dir === 'south') {
-      // Lower upper body 6px
-      for (let y = 0; y <= 44; y++) {
+      // Lower upper body (Head, torso, shirt, belt) smoothly by 6px
+      for (let y = 0; y <= 45; y++) {
         for (let x = 0; x < 64; x++) {
           const p = getPixel(x, y);
           if (p[3] > 10) setPixel(x, y + 6, p);
         }
       }
-      // Foreshorten thighs
-      for (let y = 44; y <= 50; y++) {
+      // Continuous foreshortened thighs & lap (connects belt to knees without gaps)
+      for (let y = 44; y <= 52; y++) {
         for (let x = 0; x < 64; x++) {
           const p = getPixel(x, y);
           if (p[3] > 10) {
@@ -754,7 +754,7 @@ export async function generateFullLpcSpritesheet(
           }
         }
       }
-      // Plant feet
+      // Plant feet & shoes
       for (let y = 52; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
           const p = getPixel(x, y);
@@ -763,23 +763,23 @@ export async function generateFullLpcSpritesheet(
       }
     } else if (dir === 'east') {
       // Sitting profile facing EAST
-      // 1. Lower Head, Hair, Neck & Torso by 5px (standing torso up to y=42)
-      for (let y = 0; y <= 42; y++) {
+      // 1. Lower Head, Hair, Neck & Torso by 5px
+      for (let y = 0; y <= 43; y++) {
         for (let x = 0; x < 64; x++) {
           const p = getPixel(x, y);
           if (p[3] > 10) setPixel(x, y + 5, p);
         }
       }
 
-      // Sample pants and shoe tones from the standing sprite
+      // Sample pants and shoe tones dynamically from the actual composite layers
       let pantsOutline = [20, 20, 25, 255];
       let pantsBase = [45, 60, 95, 255];
       let pantsLight = [60, 80, 125, 255];
       let shoeOutline = [20, 20, 20, 255];
       let shoeBase = [200, 200, 200, 255];
 
-      for (let y = 47; y <= 52; y++) {
-        for (let x = 28; x <= 34; x++) {
+      for (let y = 47; y <= 54; y++) {
+        for (let x = 27; x <= 36; x++) {
           const p = getPixel(x, y);
           if (p[3] > 150) {
             const br = (p[0] + p[1] + p[2]) / 3;
@@ -789,34 +789,37 @@ export async function generateFullLpcSpritesheet(
           }
         }
       }
-      for (let y = 58; y <= 62; y++) {
-        for (let x = 30; x <= 36; x++) {
+      for (let y = 57; y <= 63; y++) {
+        for (let x = 28; x <= 37; x++) {
           const p = getPixel(x, y);
           if (p[3] > 150) {
             const br = (p[0] + p[1] + p[2]) / 3;
-            if (br < 40) shoeOutline = p;
+            if (br < 45) shoeOutline = p;
             else shoeBase = p;
           }
         }
       }
 
-      // Waist connection
-      for (let x = 27; x <= 36; x++) {
-        const p = getPixel(x, 42);
-        if (p[3] > 10) setPixel(x, 47, p);
+      // Waist connection & shirt tail drape
+      for (let y = 41; y <= 44; y++) {
+        for (let x = 26; x <= 37; x++) {
+          const p = getPixel(x, y);
+          if (p[3] > 10) {
+            setPixel(x, y + 5, p);
+            setPixel(x, y + 6, p);
+          }
+        }
       }
 
-      // 2. Horizontal Thigh extending to the right (x: 27..39, y: 47..52)
+      // 2. Horizontal Thigh extending to the right (x: 27..39, y: 48..53)
       for (let x = 27; x <= 39; x++) {
-        setPixel(x, 47, pantsOutline);
         setPixel(x, 48, pantsLight);
-        setPixel(x, 49, pantsBase);
+        setPixel(x, 49, pantsLight);
         setPixel(x, 50, pantsBase);
         setPixel(x, 51, pantsBase);
         setPixel(x, 52, pantsOutline);
       }
-      setPixel(40, 48, pantsOutline);
-      setPixel(40, 49, pantsLight);
+      setPixel(40, 49, pantsOutline);
       setPixel(40, 50, pantsBase);
       setPixel(40, 51, pantsOutline);
 
@@ -840,7 +843,7 @@ export async function generateFullLpcSpritesheet(
       setPixel(43, 60, shoeOutline);
       setPixel(43, 61, shoeOutline);
 
-      // 5. Hand resting on lap (x: 33..36, y: 46..47)
+      // 5. Hand resting on lap (x: 33..36, y: 46..48)
       let skinTone = [210, 160, 130, 255];
       let skinOutline = [120, 80, 60, 255];
       for (let y = 43; y <= 46; y++) {
@@ -859,12 +862,24 @@ export async function generateFullLpcSpritesheet(
       setPixel(34, 47, skinTone);
       setPixel(35, 47, skinOutline);
     } else if (dir === 'north') {
+      // Lower upper back smoothly by 6px
       for (let y = 0; y <= 45; y++) {
         for (let x = 0; x < 64; x++) {
           const p = getPixel(x, y);
           if (p[3] > 10) setPixel(x, y + 6, p);
         }
       }
+      // Waist and thighs connection (no dropped y-gap!)
+      for (let y = 44; y <= 52; y++) {
+        for (let x = 0; x < 64; x++) {
+          const p = getPixel(x, y);
+          if (p[3] > 10) {
+            setPixel(x, y + 5, p);
+            setPixel(x, y + 6, p);
+          }
+        }
+      }
+      // Plant feet
       for (let y = 52; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
           const p = getPixel(x, y);
@@ -874,7 +889,7 @@ export async function generateFullLpcSpritesheet(
     } else if (dir === 'west') {
       // Sitting profile facing WEST
       // 1. Lower Head, Hair, Neck & Torso by 5px
-      for (let y = 0; y <= 42; y++) {
+      for (let y = 0; y <= 43; y++) {
         for (let x = 0; x < 64; x++) {
           const p = getPixel(x, y);
           if (p[3] > 10) setPixel(x, y + 5, p);
@@ -887,8 +902,8 @@ export async function generateFullLpcSpritesheet(
       let shoeOutline = [20, 20, 20, 255];
       let shoeBase = [200, 200, 200, 255];
 
-      for (let y = 47; y <= 52; y++) {
-        for (let x = 30; x <= 36; x++) {
+      for (let y = 47; y <= 54; y++) {
+        for (let x = 28; x <= 37; x++) {
           const p = getPixel(x, y);
           if (p[3] > 150) {
             const br = (p[0] + p[1] + p[2]) / 3;
@@ -898,35 +913,39 @@ export async function generateFullLpcSpritesheet(
           }
         }
       }
-      for (let y = 58; y <= 62; y++) {
-        for (let x = 28; x <= 34; x++) {
+      for (let y = 57; y <= 63; y++) {
+        for (let x = 27; x <= 36; x++) {
           const p = getPixel(x, y);
           if (p[3] > 150) {
             const br = (p[0] + p[1] + p[2]) / 3;
-            if (br < 40) shoeOutline = p;
+            if (br < 45) shoeOutline = p;
             else shoeBase = p;
           }
         }
       }
 
-      for (let x = 28; x <= 37; x++) {
-        const p = getPixel(x, 42);
-        if (p[3] > 10) setPixel(x, 47, p);
+      // Waist connection & shirt tail drape
+      for (let y = 41; y <= 44; y++) {
+        for (let x = 27; x <= 38; x++) {
+          const p = getPixel(x, y);
+          if (p[3] > 10) {
+            setPixel(x, y + 5, p);
+            setPixel(x, y + 6, p);
+          }
+        }
       }
 
-      // 2. Horizontal Thigh extending to the left (x: 25..37, y: 47..52)
+      // 2. Horizontal Thigh extending to the left (x: 25..37, y: 48..53)
       for (let x = 25; x <= 37; x++) {
-        setPixel(x, 47, pantsOutline);
         setPixel(x, 48, pantsLight);
-        setPixel(x, 49, pantsBase);
+        setPixel(x, 49, pantsLight);
         setPixel(x, 50, pantsBase);
         setPixel(x, 51, pantsBase);
         setPixel(x, 52, pantsOutline);
       }
-      setPixel(23, 48, pantsOutline);
-      setPixel(23, 49, pantsLight);
-      setPixel(23, 50, pantsBase);
-      setPixel(23, 51, pantsOutline);
+      setPixel(24, 49, pantsOutline);
+      setPixel(24, 50, pantsBase);
+      setPixel(24, 51, pantsOutline);
 
       // 3. Vertical Calf descending (x: 23..27, y: 52..57)
       for (let y = 52; y <= 57; y++) {
@@ -948,7 +967,7 @@ export async function generateFullLpcSpritesheet(
       setPixel(20, 60, shoeOutline);
       setPixel(20, 61, shoeOutline);
 
-      // 5. Hand resting on lap (x: 27..30, y: 46..47)
+      // 5. Hand resting on lap (x: 27..30, y: 46..48)
       let skinTone = [210, 160, 130, 255];
       let skinOutline = [120, 80, 60, 255];
       for (let y = 43; y <= 46; y++) {

@@ -67,6 +67,9 @@ export const VideoConferenceModal: React.FC<Props> = ({
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCamOn, setIsCamOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isScreenSharePickerOpen, setIsScreenSharePickerOpen] = useState(false);
+  const [screenShareMode, setScreenShareMode] = useState<'public' | 'target'>('public');
+  const [targetColleagueName, setTargetColleagueName] = useState('');
 
   // Discord-style Screen Share Zoom & Pan Controls
   const [screenZoom, setScreenZoom] = useState(1);
@@ -239,40 +242,43 @@ export const VideoConferenceModal: React.FC<Props> = ({
     multiplayerService.sendMediaState({ isCamOn: next });
   };
 
-  const toggleScreenShare = async () => {
+  const handleScreenShareClick = () => {
     if (isScreenSharing) {
-      setIsScreenSharing(false);
-      webrtcService.getOrCreateLocalStream(isCamOn, isMicOn).then((stream) => {
-        setLocalStream(stream);
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      });
-      meetingService.updateMediaState(String(currentUser.id), { isScreenSharing: false });
-      multiplayerService.sendMediaState({ isScreenSharing: false });
+      stopScreenShare();
     } else {
-      try {
-        if (!navigator.mediaDevices?.getDisplayMedia) return;
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        setIsScreenSharing(true);
-        setLocalStream(screenStream);
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = screenStream;
-          localVideoRef.current.play().catch(() => {});
-        }
-        meetingService.updateMediaState(String(currentUser.id), { isScreenSharing: true });
-        multiplayerService.sendMediaState({ isScreenSharing: true });
+      setIsScreenSharePickerOpen(true);
+    }
+  };
 
-        screenStream.getVideoTracks()[0].onended = () => {
-          setIsScreenSharing(false);
-          webrtcService.getOrCreateLocalStream(isCamOn, isMicOn).then((s) => {
-            setLocalStream(s);
-            if (localVideoRef.current) localVideoRef.current.srcObject = s;
-          });
-          meetingService.updateMediaState(String(currentUser.id), { isScreenSharing: false });
-          multiplayerService.sendMediaState({ isScreenSharing: false });
-        };
-      } catch (e) {
-        console.warn('Screen share cancelled:', e);
+  const stopScreenShare = () => {
+    setIsScreenSharing(false);
+    webrtcService.getOrCreateLocalStream(isCamOn, isMicOn).then((stream) => {
+      setLocalStream(stream);
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    });
+    meetingService.updateMediaState(String(currentUser.id), { isScreenSharing: false });
+    multiplayerService.sendMediaState({ isScreenSharing: false });
+  };
+
+  const startScreenShare = async () => {
+    setIsScreenSharePickerOpen(false);
+    try {
+      if (!navigator.mediaDevices?.getDisplayMedia) return;
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      setIsScreenSharing(true);
+      setLocalStream(screenStream);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = screenStream;
+        localVideoRef.current.play().catch(() => {});
       }
+      meetingService.updateMediaState(String(currentUser.id), { isScreenSharing: true });
+      multiplayerService.sendMediaState({ isScreenSharing: true });
+
+      screenStream.getVideoTracks()[0].onended = () => {
+        stopScreenShare();
+      };
+    } catch (e) {
+      console.warn('Screen share cancelled:', e);
     }
   };
 
@@ -962,7 +968,7 @@ export const VideoConferenceModal: React.FC<Props> = ({
 
             <button
               type="button"
-              onClick={toggleScreenShare}
+              onClick={handleScreenShareClick}
               className={`p-3 rounded-full transition-all cursor-pointer ${
                 isScreenSharing ? 'bg-teal text-soft ring-2 ring-teal-light' : 'bg-slate-800 hover:bg-slate-700 text-white'
               }`}
@@ -1215,6 +1221,91 @@ export const VideoConferenceModal: React.FC<Props> = ({
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Modal Target / Publik Screen Sharing Selector */}
+        {isScreenSharePickerOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md bg-[#0f172a] border border-teal-500/40 rounded-2xl p-5 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <h3 className="font-bold text-sm text-teal-300 flex items-center gap-2">
+                  <ScreenShare className="w-4 h-4 text-teal-400" />
+                  <span>Pilih Target Berbagi Layar</span>
+                </h3>
+                <button
+                  onClick={() => setIsScreenSharePickerOpen(false)}
+                  className="p-1 text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Pilih apakah layar Anda dapat dilihat oleh seluruh rekan di ruang rapat dan lobby publik, atau khusus ditujukan ke kelompok / ID rekan tertentu.
+              </p>
+
+              <div className="space-y-2">
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-700 bg-slate-900/60 cursor-pointer hover:border-teal-500/50">
+                  <input
+                    type="radio"
+                    name="screenshare-target"
+                    checked={screenShareMode === 'public'}
+                    onChange={() => setScreenShareMode('public')}
+                    className="mt-0.5 text-teal-500 focus:ring-teal-400"
+                  />
+                  <div>
+                    <div className="text-xs font-semibold text-white">Publik (Seluruh Ruang Rapat & Lobby)</div>
+                    <div className="text-[11px] text-slate-400">
+                      Seluruh rekan yang hadir di ruang rapat dapat melihat siaran layar Anda secara langsung.
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-700 bg-slate-900/60 cursor-pointer hover:border-teal-500/50">
+                  <input
+                    type="radio"
+                    name="screenshare-target"
+                    checked={screenShareMode === 'target'}
+                    onChange={() => setScreenShareMode('target')}
+                    className="mt-0.5 text-teal-500 focus:ring-teal-400"
+                  />
+                  <div className="w-full">
+                    <div className="text-xs font-semibold text-white">Target Teman / ID Bracket Kelompok</div>
+                    <div className="text-[11px] text-slate-400 mb-2">
+                      Siaran layar hanya dapat diakses oleh rekan yang Anda undang atau masukkan username/ID-nya.
+                    </div>
+                    {screenShareMode === 'target' && (
+                      <input
+                        type="text"
+                        value={targetColleagueName}
+                        onChange={(e) => setTargetColleagueName(e.target.value)}
+                        placeholder="Ketik username rekan (misal: NandaNannn)..."
+                        className="w-full p-2 bg-slate-950 border border-teal-500/40 rounded-lg text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-400"
+                      />
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsScreenSharePickerOpen(false)}
+                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-white"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={startScreenShare}
+                  className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-lg"
+                >
+                  <ScreenShare className="w-3.5 h-3.5" />
+                  <span>Mulai Berbagi Layar</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

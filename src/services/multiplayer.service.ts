@@ -169,6 +169,17 @@ class MultiplayerService {
       this.broadcastOnlinePlayersList();
     });
 
+    // 4b. Karakter / Kustomisasi pemain lain berubah secara realtime
+    this.socket.on('s:player_character_updated', (data: { socketId: string; archetype: string; characterConfig: any }) => {
+      const existing = this.onlinePlayers.get(data.socketId);
+      if (existing) {
+        existing.archetype = data.archetype;
+        existing.characterConfig = data.characterConfig;
+      }
+      EventBus.emit(GAME_EVENTS.REMOTE_PLAYER_CHARACTER_UPDATED, data);
+      this.broadcastOnlinePlayersList();
+    });
+
     // 5. Pesan obrolan kantor diterima
     this.socket.on('s:chat_message', (packet: PlayerChatPacket) => {
       EventBus.emit(GAME_EVENTS.REMOTE_CHAT_RECEIVED, packet);
@@ -300,6 +311,14 @@ class MultiplayerService {
     EventBus.emit(GAME_EVENTS.LOCAL_MEDIA_CHANGED, this.currentMediaState);
     if (!this.socket || !this.isConnected) return;
     this.socket.emit('c:media_state', { mediaState: this.currentMediaState });
+  }
+
+  public updateCharacter(characterConfig: any): void {
+    if (this.lastJoinPayload) {
+      this.lastJoinPayload.characterConfig = characterConfig;
+    }
+    if (!this.socket || !this.isConnected) return;
+    this.socket.emit('c:character_update', { characterConfig });
   }
 
   public sendWebRTCSignal(packet: WebRTCSignalPacket): void {

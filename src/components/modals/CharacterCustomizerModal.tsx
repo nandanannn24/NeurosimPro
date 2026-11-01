@@ -41,6 +41,7 @@ import {
 import { CharacterCanvasPreview } from '../character/CharacterCanvasPreview';
 import { EventBus, GAME_EVENTS } from '../../game/EventBus';
 import { generateFullLpcSpritesheet } from '../../lib/lpcCompositor';
+import { multiplayerService } from '../../services/multiplayer.service';
 
 interface Props {
   isOpen: boolean;
@@ -181,6 +182,7 @@ export const CharacterCustomizerModal: React.FC<Props> = ({
 
     // Emit ke Phaser engine agar sprite player langsung diupdate seketika
     EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, toSave);
+    multiplayerService.updateCharacter(toSave);
 
     setSaveToast(true);
     setTimeout(() => {

@@ -27,6 +27,7 @@ import { RoomLobbyView } from './components/views/RoomLobbyView';
 
 // Virtual office workspace components
 import { GatherDock, UserStatus } from './components/gather/GatherDock';
+import { BracketLiveSidebar } from './components/gather/BracketLiveSidebar';
 import { ParticipantsDrawer, Participant } from './components/gather/ParticipantsDrawer';
 import { OfficeChatDrawer, OfficeChatMessage } from './components/gather/OfficeChatDrawer';
 import { WebcamWidget } from './components/gather/WebcamWidget';
@@ -318,7 +319,6 @@ export const App: React.FC = () => {
   // Simpan preferensi kustomisasi karakter ke localStorage
   useEffect(() => {
     localStorage.setItem('neurosim_character_config', JSON.stringify(characterConfig));
-    localStorage.removeItem('neurosim_character_spritesheet');
   }, [characterConfig]);
 
   // Sinkronkan nama profil akun pengguna yang aktif ke konfigurasi karakter
@@ -332,7 +332,38 @@ export const App: React.FC = () => {
         };
       });
     }
+    if (typeof window !== 'undefined' && currentUser) {
+      window.dispatchEvent(
+        new CustomEvent('neurosim_user_profile_updated', { detail: currentUser })
+      );
+    }
   }, [currentUser]);
+
+  // Auto On-Cam & Formal Meeting Event Listeners from Game Engine
+  useEffect(() => {
+    const handleAutoOnCam = (turnOn: boolean) => {
+      if (turnOn) {
+        setIsCamOn(true);
+        multiplayerService.sendMediaState({ isCamOn: true });
+      }
+    };
+
+    const handleToggleMeeting = (open: boolean) => {
+      if (open) {
+        handleOpenVideoConference();
+      } else {
+        setIsVideoConferenceOpen(false);
+      }
+    };
+
+    EventBus.on('neurosim_auto_oncam', handleAutoOnCam);
+    EventBus.on(GAME_EVENTS.TOGGLE_GOOGLE_MEET, handleToggleMeeting);
+
+    return () => {
+      EventBus.off('neurosim_auto_oncam', handleAutoOnCam);
+      EventBus.off(GAME_EVENTS.TOGGLE_GOOGLE_MEET, handleToggleMeeting);
+    };
+  }, [handleOpenVideoConference]);
 
   // Check URL query param e.g. ?room=DEV-UIUX-26 on initial mount
   useEffect(() => {
@@ -492,22 +523,23 @@ export const App: React.FC = () => {
   // Gabung ke room multiplayer online saat berada di tampilan simulasi
   useEffect(() => {
     if (currentView === 'simulation') {
+      const activeUsername = currentUser?.username || 'Pengunjung';
       multiplayerService.joinRoom({
-        roomId: currentRoom.code,
+        roomId: currentLobbyId,
         user: {
           id: currentUser?.id,
-          username: currentUser?.username || 'Pengunjung',
-          fullName: currentUser?.fullName || getUserDisplayName(currentUser),
+          username: activeUsername,
+          fullName: activeUsername,
           role: currentUser?.role || 'Staff Tim',
-          avatar: currentUser?.avatar || '/assets/characters/resident/standing/south.png',
+          avatar: currentUser?.avatar || `/assets/characters/${characterConfig.archetype || 'resident'}/standing/south.png`,
         },
         characterConfig,
-        spawnCoords: { x: 1810, y: 790 },
+        spawnCoords: { x: 1375, y: 1260 },
       });
     } else {
       multiplayerService.leaveRoom();
     }
-  }, [currentView, currentRoom.code, currentUser, characterConfig]);
+  }, [currentView, currentLobbyId, currentUser, characterConfig]);
 
   // Dengarkan pesan obrolan masuk dan pembaruan pemain online dari server
   useEffect(() => {
@@ -696,10 +728,7 @@ export const App: React.FC = () => {
           currentUser={currentUser}
           characterConfig={characterConfig}
           onEnterDashboard={() => setCurrentView('dashboard')}
-          onEnterSimulation={() => {
-            setCurrentView('simulation');
-            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
-          }}
+          onEnterSimulation={() => setIsLobbySelectorOpen(true)}
           onOpenCustomizer={() => setIsCustomizerOpen(true)}
           onOpenAuth={() => setIsAuthOpen(true)}
           onOpenProposal={() => setIsProposalOpen(true)}
@@ -724,10 +753,8 @@ export const App: React.FC = () => {
             if (room) {
               setSelectedRoom(room);
               localStorage.setItem('neurosim_spawn_coords', JSON.stringify(room.spawnCoords));
-              EventBus.emit(GAME_EVENTS.TELEPORT_TO_ROOM, room.spawnCoords);
             }
-            setCurrentView('simulation');
-            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+            setIsLobbySelectorOpen(true);
           }}
           onOpenCustomizer={() => setIsCustomizerOpen(true)}
           onOpenAuth={() => setIsAuthOpen(true)}
@@ -748,9 +775,7 @@ export const App: React.FC = () => {
             if (micState !== undefined) setIsMicOn(micState);
             if (camState !== undefined) setIsCamOn(camState);
             localStorage.setItem('neurosim_spawn_coords', JSON.stringify(room.spawnCoords));
-            EventBus.emit(GAME_EVENTS.TELEPORT_TO_ROOM, room.spawnCoords);
-            setCurrentView('simulation');
-            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+            setIsLobbySelectorOpen(true);
           }}
           onBackToDashboard={() => setCurrentView('dashboard')}
         />
@@ -800,6 +825,25 @@ export const App: React.FC = () => {
             <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
               {currentView === 'simulation' && <PhaserGame />}
+
+              {/* Right-Side Live Bracket Status Sidebar */}
+              {currentView === 'simulation' && (
+                <BracketLiveSidebar
+                  currentLobbyId={currentLobbyId}
+                  currentLobbyName={currentLobbyName}
+                  localUser={{
+                    username: currentUser?.username || 'Pengguna',
+                    fullName: currentUser?.fullName || getUserDisplayName(currentUser),
+                    avatar: currentUser?.avatar || `/assets/characters/${characterConfig.archetype || 'resident'}/standing/south.png`,
+                    zone: currentZoneName,
+                    status: userStatus === 'available' ? 'online' : (userStatus as any),
+                    isMicOn,
+                    isCamOn,
+                  }}
+                  remotePlayers={onlineRemotePlayers}
+                  onOpenLobbySelector={() => setIsLobbySelectorOpen(true)}
+                />
+              )}
 
               {/* WebRTC Video Conference Modal */}
               <VideoConferenceModal
@@ -905,15 +949,16 @@ export const App: React.FC = () => {
               />
             </div>
           ) : (
-            <div className="w-full h-full overflow-y-auto py-6 bg-sand">
-              <ScenarioList
-                scenarios={SCENARIOS}
-                tasks={tasks}
-                onStartScenario={(scId, lvl, goal) => {
-                  setMode('2d');
-                  handleStartScenario(scId, lvl, goal);
-                }}
-              />
+            <div className="w-full h-full flex items-center justify-center bg-[#0f1117] text-slate-400">
+              <div className="text-center p-6 space-y-3">
+                <p className="text-sm">Tampilan 2D Virtual Office adalah mode default NeuroSim Pro.</p>
+                <button
+                  onClick={() => setMode('2d')}
+                  className="px-4 py-2 bg-teal text-soft rounded-lg font-bold text-xs"
+                >
+                  Kembali ke Kantor 2D
+                </button>
+              </div>
             </div>
           )}
         </main>
@@ -933,6 +978,14 @@ export const App: React.FC = () => {
           setCurrentLobbyId(lobby.id);
           setCurrentLobbyName(lobby.name);
           setIsLobbySelectorOpen(false);
+          setCurrentView('simulation');
+          EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+          if (currentUser) {
+            EventBus.emit('neurosim_user_profile_updated', currentUser);
+          }
+          if (characterConfig) {
+            EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, characterConfig);
+          }
         }}
       />
 
@@ -978,23 +1031,11 @@ export const App: React.FC = () => {
         onSaveConfig={(newConfig) => {
           setCharacterConfig(newConfig);
           localStorage.setItem('neurosim_character_config', JSON.stringify(newConfig));
-          localStorage.removeItem('neurosim_character_spritesheet');
           EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, newConfig);
 
-          // Update multiplayer presence immediately
+          // Update multiplayer presence and character immediately
           if (currentView === 'simulation') {
-            multiplayerService.joinRoom({
-              roomId: currentRoom.code,
-              user: {
-                id: currentUser?.id,
-                username: currentUser?.username || 'Pengunjung',
-                fullName: currentUser?.fullName || getUserDisplayName(currentUser),
-                role: currentUser?.role || 'Staff Tim',
-                avatar: currentUser?.avatar || `/assets/characters/${newConfig.archetype || 'resident'}/standing/south.png`,
-              },
-              characterConfig: newConfig,
-              spawnCoords: { x: 1810, y: 790 },
-            });
+            multiplayerService.updateCharacter(newConfig);
           }
         }}
       />
