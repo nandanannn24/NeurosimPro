@@ -1259,8 +1259,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-north', 2195, 335, 58, 52);  // Guest Chair 2
 
     // Register interactive seats in Executive Suite (Hips rest squarely in pink armchair cushion)
-    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -14);
-    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -14);
+    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -28);
+    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -28);
 
     // Executive Library Wall
     this.addSolidProp('bookcase', 1850, 140, 75, 58);
