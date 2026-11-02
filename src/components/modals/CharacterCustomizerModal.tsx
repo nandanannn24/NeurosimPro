@@ -159,9 +159,12 @@ export const CharacterCustomizerModal: React.FC<Props> = ({
   };
 
   const handleSave = async () => {
+    const activeName = (userName && userName !== 'Pengguna')
+      ? userName
+      : (config.name && config.name !== 'Pengguna' ? config.name : 'Pengguna');
     const toSave: CharacterCustomization = {
       ...config,
-      name: userName || config.name || 'Pengguna',
+      name: activeName,
     };
     onSaveConfig(toSave);
     // Simpan ke localStorage agar awet antar sesi
@@ -182,6 +185,7 @@ export const CharacterCustomizerModal: React.FC<Props> = ({
 
     // Emit ke Phaser engine agar sprite player langsung diupdate seketika
     EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, toSave);
+    EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', activeName);
     multiplayerService.updateCharacter(toSave);
 
     setSaveToast(true);

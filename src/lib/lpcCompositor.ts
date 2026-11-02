@@ -446,7 +446,20 @@ export function getLpcLayers(config: CharacterCustomization): LayerSpec[] {
     });
   }
 
-  // 7d. Accessories & Office Equipment
+  // 7d. Waistline / Belt connection (Ensures 100% seamless, continuous connection between shirt and trousers)
+  const isSkirt = (config.pantsType || '').includes('skirt');
+  if (!isSkirt) {
+    layers.push({
+      id: 'belt',
+      url: '/assets/lpc/torso/waist/belt_leather/male/walk.png',
+      paletteType: 'cloth',
+      sourceVariant: 'brown',
+      targetVariant: 'leather',
+      zPos: 48,
+    });
+  }
+
+  // 7e. Accessories & Office Equipment
   const acc = config.accessory || 'none';
   if (acc === 'leather-watch') {
     layers.push({
@@ -457,9 +470,9 @@ export function getLpcLayers(config: CharacterCustomization): LayerSpec[] {
       targetVariant: 'brown',
       zPos: 65,
     });
-  } else if (acc === 'belt-leather') {
+  } else if (acc === 'belt-leather' && isSkirt) {
     layers.push({
-      id: 'belt',
+      id: 'belt-extra',
       url: '/assets/lpc/torso/waist/belt_leather/male/walk.png',
       paletteType: 'cloth',
       sourceVariant: 'brown',

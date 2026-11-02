@@ -84,6 +84,27 @@ io.on('connection', (socket) => {
     console.log(`[Realtime] ${playerData.fullName} (@${playerData.username}) bergabung ke room: ${currentRoomId} (${roomPlayers.size} pemain)`);
   });
 
+  socket.on('c:character_update', (data) => {
+    if (!currentRoomId || !playerData || !data) return;
+    const cfg = data.characterConfig;
+    if (cfg) {
+      playerData.characterConfig = cfg;
+      playerData.archetype = cfg.archetype || 'resident';
+      if (cfg.name && typeof cfg.name === 'string' && cfg.name.trim()) {
+        playerData.fullName = cfg.name.trim();
+        playerData.username = cfg.name.trim();
+      }
+      socket.to(currentRoomId).emit('s:player_character_updated', {
+        socketId: socket.id,
+        archetype: playerData.archetype,
+        characterConfig: cfg,
+        username: playerData.username,
+        fullName: playerData.fullName,
+      });
+      console.log(`[Realtime] ${playerData.fullName} mengupdate karakter ke ${playerData.archetype}`);
+    }
+  });
+
   socket.on('c:move', (data) => {
     if (!currentRoomId || !playerData || !data) return;
     playerData.x = data.x;
