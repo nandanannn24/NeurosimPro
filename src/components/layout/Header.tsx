@@ -13,7 +13,6 @@ interface Props {
   onChangeTextScale: (s: TextScale) => void;
   highContrast: boolean;
   onToggleHighContrast: () => void;
-  onOpenProposal: () => void;
   onOpenTodoList: () => void;
   completedCount: number;
   totalCount: number;

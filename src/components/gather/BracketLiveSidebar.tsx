@@ -301,3 +301,4 @@ export const BracketLiveSidebar: React.FC<BracketSidebarProps> = ({
     </div>
   );
 };
+

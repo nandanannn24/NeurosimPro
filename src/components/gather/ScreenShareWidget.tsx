@@ -21,7 +21,7 @@ interface Props {
 export const ScreenShareWidget: React.FC<Props> = ({
   isOpen,
   onClose,
-  userName = 'Rifat (Kamu)',
+  userName = 'Pengguna (Anda)',
   isViewerMode = false,
   presenterName = 'Rekan Kerja',
 }) => {

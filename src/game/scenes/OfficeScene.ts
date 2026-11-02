@@ -239,6 +239,9 @@ export class OfficeScene extends Phaser.Scene {
   private playerDisplayName: string = 'Pengguna';
   private playerCurrentStatus: string = 'online';
 
+  // Direct active movement keys tracking (immune to canvas focus loss & caps lock)
+  private activeMoveKeys: Set<string> = new Set<string>();
+
   // 30-Minute Inactivity AFK Timer
   private lastUserActivityTime: number = Date.now();
   private isAfk: boolean = false;
@@ -337,8 +340,11 @@ export class OfficeScene extends Phaser.Scene {
     this.keyE = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.keySpace = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-    // Prevent Phaser from hijacking default browser typing behavior (Space, Arrows, Tab)
-    this.safeDisableCapture();
+    // Attach window keyboard listeners for instant, un-jammable WASD responsiveness
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', this.handleKeyDown);
+      window.addEventListener('keyup', this.handleKeyUp);
+    }
 
     // 12. Interactive Prompt Box
     this.buildInteractivePrompt();
@@ -354,6 +360,8 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.on(GAME_EVENTS.CLOSE_TODO_LIST, this.handleCloseDialog, this);
     EventBus.on(GAME_EVENTS.PAUSE_INPUT, this.lockPlayer, this);
     EventBus.on(GAME_EVENTS.RESUME_INPUT, this.handleCloseDialog, this);
+    EventBus.on('LOCAL_PLAYER_NAME_UPDATE', this.setLocalPlayerName, this);
+    EventBus.on('neurosim_user_profile_updated', this.handleUserProfileUpdated, this);
     EventBus.on(GAME_EVENTS.TRIGGER_REACTION, this.handleTriggerReaction, this);
     EventBus.on(GAME_EVENTS.TRIGGER_CHAT_BUBBLE, this.handleTriggerChatBubble, this);
     EventBus.on(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, this.handleUpdatePlayerCharacter, this);
@@ -559,7 +567,7 @@ export class OfficeScene extends Phaser.Scene {
 
         // Depth sorting saat duduk presisi seragam dengan local player
         if (record.direction === 'north') {
-          record.container.setDepth(record.targetY + 28);
+          record.container.setDepth(record.targetY + 20);
         } else {
           record.container.setDepth(record.targetY + 55);
         }
@@ -655,14 +663,13 @@ export class OfficeScene extends Phaser.Scene {
           (activeEl as HTMLElement).isContentEditable)
     );
 
-    const hasFocus =
-      typeof document !== 'undefined' && typeof document.hasFocus === 'function'
-        ? document.hasFocus()
-        : true;
-
-    if (this.isPlayerLocked || isModalOpen || isUserTyping || !hasFocus) {
+    if (isUserTyping || isModalOpen) {
       this.resetMovementKeys();
       return;
+    }
+
+    if (this.isPlayerLocked && !isModalOpen && !isUserTyping) {
+      this.isPlayerLocked = false;
     }
 
     // Movement calculation
@@ -670,10 +677,26 @@ export class OfficeScene extends Phaser.Scene {
     let vx = 0;
     let vy = 0;
 
-    const left = this.wasd.A.isDown || this.cursors.left.isDown;
-    const right = this.wasd.D.isDown || this.cursors.right.isDown;
-    const up = this.wasd.W.isDown || this.cursors.up.isDown;
-    const down = this.wasd.S.isDown || this.cursors.down.isDown;
+    const left =
+      (this.wasd?.A?.isDown ?? false) ||
+      (this.cursors?.left?.isDown ?? false) ||
+      this.activeMoveKeys.has('a') ||
+      this.activeMoveKeys.has('arrowleft');
+    const right =
+      (this.wasd?.D?.isDown ?? false) ||
+      (this.cursors?.right?.isDown ?? false) ||
+      this.activeMoveKeys.has('d') ||
+      this.activeMoveKeys.has('arrowright');
+    const up =
+      (this.wasd?.W?.isDown ?? false) ||
+      (this.cursors?.up?.isDown ?? false) ||
+      this.activeMoveKeys.has('w') ||
+      this.activeMoveKeys.has('arrowup');
+    const down =
+      (this.wasd?.S?.isDown ?? false) ||
+      (this.cursors?.down?.isDown ?? false) ||
+      this.activeMoveKeys.has('s') ||
+      this.activeMoveKeys.has('arrowdown');
 
     if (left) vx = -speed;
     else if (right) vx = speed;
@@ -1144,9 +1167,9 @@ export class OfficeScene extends Phaser.Scene {
     this.addSeat('Kursi Rapat', 470, 645, 'south', 'chair', 0, 4);
     this.addSeat('Kursi Rapat', 585, 645, 'south', 'chair', 0, 4);
     this.addSeat('Kursi Rapat', 700, 645, 'south', 'chair', 0, 4);
-    this.addSeat('Kursi Rapat', 470, 795, 'north', 'chair', 0, -18);
-    this.addSeat('Kursi Rapat', 585, 795, 'north', 'chair', 0, -18);
-    this.addSeat('Kursi Rapat', 700, 795, 'north', 'chair', 0, -18);
+    this.addSeat('Kursi Rapat', 470, 795, 'north', 'chair', 0, -4);
+    this.addSeat('Kursi Rapat', 585, 795, 'north', 'chair', 0, -4);
+    this.addSeat('Kursi Rapat', 700, 795, 'north', 'chair', 0, -4);
     this.addSeat('Kursi Utama Rapat', 360, 720, 'east', 'chair', -6, 0);
 
     // Credenza & Storage against top wall
@@ -1216,8 +1239,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('sofa-north', 800, 1330, 104, 48);
     this.addSeat('Armchair Santai Seberang Kiri', 690, 1270, 'east', 'armchair', 4, -6);
     this.addSeat('Armchair Santai Seberang Kanan', 910, 1270, 'west', 'armchair', -4, -6);
-    this.addSeat('Sofa Santai Seberang', 765, 1330, 'north', 'sofa', 0, -22);
-    this.addSeat('Sofa Santai Seberang', 835, 1330, 'north', 'sofa', 0, -22);
+    this.addSeat('Sofa Santai Seberang', 765, 1330, 'north', 'sofa', 0, -4);
+    this.addSeat('Sofa Santai Seberang', 835, 1330, 'north', 'sofa', 0, -4);
     this.addSolidProp('plant-large', 1090, 1315, 50, 50);
     this.addDecorativeProp('floor-lamp', 1000, 1315);
 
@@ -1244,8 +1267,11 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-north', 2195, 335, 58, 52);  // Guest Chair 2
 
     // Register interactive seats in Executive Suite
-    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -28);
-    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -28);
+    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -4);
+    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -4);
+
+    // Cleanly remove the plant at the boss room entrance wall as requested (Image 4)
+    this.add.rectangle(2275, 580, 56, 56, 0x515b6b).setDepth(580);
 
     // Executive Library Wall
     this.addSolidProp('bookcase', 1850, 140, 75, 58);
@@ -1315,12 +1341,15 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('plant-large', 2550, 590, 52, 52);
     this.addSolidProp('plant-large', 2550, 1330, 52, 52);
 
-    // Meja Kerja Kantoran Tambahan (Menggantikan floor lamp di area kerja)
-    this.addSolidDesk(2340, 875);
-    this.add.image(2340, 875 - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(875 + 46);
-    this.addSolidChair('office-chair-north', 2340, 875 + 68, 38, 30, 875 + 68 + 44);
-    this.addSeat('Meja Kerja Ekstra', 2340, 875 + 68, 'north', 'chair', 0, -18, 'desk-extra');
-    this.createDeskNametag('desk-extra', 2340, 875 - 32, 'MEJA KERJA');
+    // Meja Kerja Kantoran Tambahan (Menggantikan floor lamp di area kerja - Image 10)
+    // 1. Cover legacy floor lamp in background map completely with office carpet patch
+    this.add.rectangle(2320, 840, 64, 76, 0x515b6b).setDepth(830);
+    // 2. Add solid office desk unit as requested
+    this.addSolidDesk(2320, 840);
+    this.add.image(2320, 840 - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(840 + 46);
+    this.addSolidChair('office-chair-north', 2320, 840 + 68, 38, 30, 840 + 68 + 44);
+    this.addSeat('Meja Kerja Ekstra', 2320, 840 + 68, 'north', 'chair', 0, -4, 'desk-extra');
+    this.createDeskNametag('desk-extra', 2320, 840 - 32, 'MEJA KERJA');
   }
 
   /**
@@ -1381,8 +1410,8 @@ export class OfficeScene extends Phaser.Scene {
     // Register interactive seats with dedicated desk IDs
     this.addSeat(`Meja ${startNum}`, leftDeskX, northDeskY - 56, 'south', 'chair', 0, 4, deskId1);
     this.addSeat(`Meja ${startNum + 1}`, rightDeskX, northDeskY - 56, 'south', 'chair', 0, 4, deskId2);
-    this.addSeat(`Meja ${startNum + 2}`, leftDeskX, southDeskY + 68, 'north', 'chair', 0, -18, deskId3);
-    this.addSeat(`Meja ${startNum + 3}`, rightDeskX, southDeskY + 68, 'north', 'chair', 0, -18, deskId4);
+    this.addSeat(`Meja ${startNum + 2}`, leftDeskX, southDeskY + 68, 'north', 'chair', 0, -4, deskId3);
+    this.addSeat(`Meja ${startNum + 3}`, rightDeskX, southDeskY + 68, 'north', 'chair', 0, -4, deskId4);
 
     // Solid Physics Collider covering the center desks
     const podCollider = this.add.rectangle(podX, podY, 216, 116, 0x000000, 0);
@@ -1482,24 +1511,24 @@ export class OfficeScene extends Phaser.Scene {
 
     // 1. Board Outer Wooden Frame (Enlarged)
     this.add
-      .rectangle(TODO_POS.x, TODO_POS.y, 212, 106, 0x533e3b)
+      .rectangle(TODO_POS.x, TODO_POS.y, 252, 126, 0x533e3b)
       .setDepth(TODO_POS.y + 1);
 
     // 2. Cork/Chalkboard Surface (Enlarged)
     this.add
-      .rectangle(TODO_POS.x, TODO_POS.y, 198, 92, 0x1e293b)
+      .rectangle(TODO_POS.x, TODO_POS.y, 238, 112, 0x1e293b)
       .setDepth(TODO_POS.y + 2);
 
     // 3. Header Title Badge (Enlarged)
     this.add
-      .rectangle(TODO_POS.x, TODO_POS.y - 27, 184, 22, 0x355c5a)
+      .rectangle(TODO_POS.x, TODO_POS.y - 33, 224, 24, 0x355c5a)
       .setStrokeStyle(1.5, 0xe0b65d)
       .setDepth(TODO_POS.y + 3);
 
     this.add
-      .text(TODO_POS.x, TODO_POS.y - 27, '★ PAPAN AGENDA KERJA ★', {
+      .text(TODO_POS.x, TODO_POS.y - 33, '★ PAPAN AGENDA KERJA ★', {
         fontFamily: 'monospace',
-        fontSize: '11px',
+        fontSize: '12px',
         color: '#fff9eb',
         fontStyle: 'bold',
       })
@@ -1514,16 +1543,17 @@ export class OfficeScene extends Phaser.Scene {
         '• Ruang Rapat: Konferensi & Screen Share\n• Ruang AFK: Relaksasi & Auto-AFK\n• Workstation: 20 Meja Kerja Dedicated',
         {
           fontFamily: 'system-ui, sans-serif',
-          fontSize: '10.5px',
+          fontSize: '11px',
           color: '#e2e8f0',
           lineSpacing: 4,
+          align: 'center',
         }
       )
       .setOrigin(0.5)
       .setDepth(TODO_POS.y + 4);
 
     // 5. Impenetrable Physics Barrier for the Board (Player cannot walk through wall/board!)
-    const boardCol = this.add.rectangle(TODO_POS.x, TODO_POS.y, 214, 104, 0x000000, 0);
+    const boardCol = this.add.rectangle(TODO_POS.x, TODO_POS.y, 254, 124, 0x000000, 0);
     this.physics.add.existing(boardCol, true);
     (boardCol.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
     this.obstacles.add(boardCol);
@@ -1731,7 +1761,7 @@ export class OfficeScene extends Phaser.Scene {
 
     // Depth sorting saat duduk:
     if (seat.facing === 'north') {
-      this.player.setDepth(seat.y + 10);
+      this.player.setDepth(seat.y + 20);
     } else {
       this.player.setDepth(seat.y + 55);
     }
@@ -1868,12 +1898,42 @@ export class OfficeScene extends Phaser.Scene {
   // PLAYER CONTROLS LOCK & UNLOCK
   // =========================================================================
 
+  private handleKeyDown = (e: KeyboardEvent): void => {
+    const target = e.target as HTMLElement | null;
+    const isTyping = Boolean(
+      target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+    );
+    if (isTyping) return;
+
+    const key = e.key.toLowerCase();
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+      this.activeMoveKeys.add(key);
+      if (this.isSitting) {
+        this.standUp();
+      }
+    } else if (key === ' ' || key === 'e') {
+      if (this.isSitting) {
+        this.standUp();
+      }
+    }
+  };
+
+  private handleKeyUp = (e: KeyboardEvent): void => {
+    const key = e.key.toLowerCase();
+    this.activeMoveKeys.delete(key);
+  };
+
   private resetMovementKeys = (): void => {
+    this.activeMoveKeys.clear();
     if (this.player && this.player.body) {
       this.player.setVelocity(0, 0);
-      this.player.play(`${this.playerArchetypeKey}-idle-${this.lastDirection}`, true);
+      if (!this.isSitting) {
+        this.player.play(`${this.playerArchetypeKey}-idle-${this.lastDirection}`, true);
+      }
     }
-    this.safeDisableCapture();
     if (this.input?.keyboard) {
       this.input.keyboard.resetKeys();
     }
@@ -1903,20 +1963,8 @@ export class OfficeScene extends Phaser.Scene {
   };
 
   private handleCloseDialog = (): void => {
-    // Only re-enable capture if not focused in any input
-    const activeEl = typeof document !== 'undefined' ? document.activeElement : null;
-    const isTyping = Boolean(
-      activeEl &&
-        (activeEl.tagName === 'INPUT' ||
-          activeEl.tagName === 'TEXTAREA' ||
-          (activeEl as HTMLElement).isContentEditable)
-    );
-
-    if (!isTyping) {
-      this.isPlayerLocked = false;
-      this.resetMovementKeys();
-      this.safeEnableCapture();
-    }
+    this.isPlayerLocked = false;
+    this.resetMovementKeys();
   };
 
   private handleWindowBlur = (): void => {
@@ -1936,7 +1984,8 @@ export class OfficeScene extends Phaser.Scene {
       target &&
       (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
     ) {
-      this.lockPlayer();
+      this.isPlayerLocked = true;
+      this.resetMovementKeys();
     }
   };
 
@@ -1948,25 +1997,19 @@ export class OfficeScene extends Phaser.Scene {
 
     if (!this.sys || !this.sys.isActive()) return;
 
-    const target = e.target as HTMLElement | null;
-    if (
-      target &&
-      (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-    ) {
-      this.focusTimeoutId = window.setTimeout(() => {
-        if (!this.sys || !this.sys.isActive()) return;
-        const nextActive = typeof document !== 'undefined' ? document.activeElement : null;
-        const stillTyping = Boolean(
-          nextActive &&
-            (nextActive.tagName === 'INPUT' ||
-              nextActive.tagName === 'TEXTAREA' ||
-              (nextActive as HTMLElement).isContentEditable)
-        );
-        if (!stillTyping && !this.isPlayerLocked) {
-          this.safeEnableCapture();
-        }
-      }, 50);
-    }
+    this.focusTimeoutId = window.setTimeout(() => {
+      if (!this.sys || !this.sys.isActive()) return;
+      const nextActive = typeof document !== 'undefined' ? document.activeElement : null;
+      const stillTyping = Boolean(
+        nextActive &&
+          (nextActive.tagName === 'INPUT' ||
+            nextActive.tagName === 'TEXTAREA' ||
+            (nextActive as HTMLElement).isContentEditable)
+      );
+      if (!stillTyping) {
+        this.isPlayerLocked = false;
+      }
+    }, 50);
   };
 
   // =========================================================================
@@ -2800,13 +2843,17 @@ export class OfficeScene extends Phaser.Scene {
       window.clearTimeout(this.focusTimeoutId);
       this.focusTimeoutId = null;
     }
-    this.safeDisableCapture();
+    this.activeMoveKeys.clear();
     this.scale.off('resize', this.handleResize, this);
     EventBus.off(GAME_EVENTS.CLOSE_DIALOG, this.handleCloseDialog, this);
     EventBus.off(GAME_EVENTS.CLOSE_TODO_LIST, this.handleCloseDialog, this);
     EventBus.off(GAME_EVENTS.PAUSE_INPUT, this.lockPlayer, this);
     EventBus.off(GAME_EVENTS.RESUME_INPUT, this.handleCloseDialog, this);
+    EventBus.off('LOCAL_PLAYER_NAME_UPDATE', this.setLocalPlayerName, this);
+    EventBus.off('neurosim_user_profile_updated', this.handleUserProfileUpdated, this);
     if (typeof window !== 'undefined') {
+      window.removeEventListener('keydown', this.handleKeyDown);
+      window.removeEventListener('keyup', this.handleKeyUp);
       window.removeEventListener('focusin', this.handleWindowFocusIn);
       window.removeEventListener('focusout', this.handleWindowFocusOut);
       window.removeEventListener('blur', this.handleWindowBlur);

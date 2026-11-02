@@ -66,7 +66,7 @@ export const CharacterCustomizerModal: React.FC<Props> = ({
     const base = currentConfig || DEFAULT_CHARACTER;
     return {
       ...base,
-      name: userName || base.name || 'Rifat',
+      name: userName || base.name || 'Pengguna',
     };
   });
   const [activeTab, setActiveTab] = useState<TabCategory>('identity');
@@ -78,7 +78,7 @@ export const CharacterCustomizerModal: React.FC<Props> = ({
     if (currentConfig) {
       setConfig({
         ...currentConfig,
-        name: userName || currentConfig.name || 'Rifat',
+        name: userName || currentConfig.name || 'Pengguna',
         accessory:
           currentConfig.accessory === 'id-badge' ? 'none' : (currentConfig.accessory || 'none'),
       });
@@ -154,14 +154,14 @@ export const CharacterCustomizerModal: React.FC<Props> = ({
     const base = currentConfig || DEFAULT_CHARACTER;
     setConfig({
       ...base,
-      name: userName || base.name || 'Rifat',
+      name: userName || base.name || 'Pengguna',
     });
   };
 
   const handleSave = async () => {
     const toSave: CharacterCustomization = {
       ...config,
-      name: userName || config.name || 'Rifat',
+      name: userName || config.name || 'Pengguna',
     };
     onSaveConfig(toSave);
     // Simpan ke localStorage agar awet antar sesi

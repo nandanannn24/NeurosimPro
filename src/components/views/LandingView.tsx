@@ -28,7 +28,6 @@ interface Props {
   onEnterSimulation: () => void;
   onOpenCustomizer: () => void;
   onOpenAuth: () => void;
-  onOpenProposal?: () => void;
 }
 
 export const LandingView: React.FC<Props> = ({
