@@ -559,7 +559,7 @@ export class OfficeScene extends Phaser.Scene {
         record.container.y = record.targetY;
 
         // Depth sorting saat duduk presisi seragam dengan local player
-        if (record.direction === 'north' && !record.sitAnim?.includes('armchair') && !record.sitAnim?.includes('sofa')) {
+        if (record.direction === 'north') {
           record.container.setDepth(record.targetY + 20);
         } else {
           record.container.setDepth(record.targetY + 55);
@@ -1259,8 +1259,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-north', 2195, 335, 58, 52);  // Guest Chair 2
 
     // Register interactive seats in Executive Suite (Hips rest squarely in pink armchair cushion)
-    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -28);
-    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -28);
+    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -36);
+    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -36);
 
     // Executive Library Wall
     this.addSolidProp('bookcase', 1850, 140, 75, 58);
@@ -1756,10 +1756,12 @@ export class OfficeScene extends Phaser.Scene {
     this.lastDirection = seat.facing;
 
     // Depth sorting saat duduk rapi di atas bantalan kursi
-    if (seat.type === 'armchair' || seat.type === 'sofa') {
-      this.player.setDepth(seat.y + 55);
-    } else if (seat.facing === 'north') {
+    if (seat.facing === 'north') {
+      // Menghadap North: sandaran kursi berada di depan pinggang/kaki karakter (dari sudut pandang kamera),
+      // sehingga sandaran menutupi kaki/pinggang dan kepala/bahu menyembul rapi menghadap ke meja/pimpinan
       this.player.setDepth(seat.y + 20);
+    } else if (seat.type === 'armchair' || seat.type === 'sofa') {
+      this.player.setDepth(seat.y + 55);
     } else {
       this.player.setDepth(seat.y + 55);
     }
@@ -2094,7 +2096,7 @@ export class OfficeScene extends Phaser.Scene {
 
     if (isSitting) {
       if (presence.direction === 'north') {
-        container.setDepth(presence.y + 54);
+        container.setDepth(presence.y + 20);
       } else {
         container.setDepth(presence.y + 55);
       }
