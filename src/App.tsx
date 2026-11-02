@@ -335,6 +335,14 @@ export const App: React.FC = () => {
     }
   }, [currentUser]);
 
+  const handleSceneReady = React.useCallback(() => {
+    const activeName = currentUser?.username || currentUser?.fullName || getUserDisplayName(currentUser);
+    EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', activeName);
+    if (characterConfig) {
+      EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, characterConfig);
+    }
+  }, [currentUser, characterConfig]);
+
   // Auto On-Cam & Formal Meeting Event Listeners from Game Engine
   useEffect(() => {
     const handleAutoOnCam = (turnOn: boolean) => {
@@ -771,15 +779,7 @@ export const App: React.FC = () => {
             <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
               {currentView === 'simulation' && (
-                <PhaserGame
-                  onSceneReady={() => {
-                    const activeName = currentUser?.username || currentUser?.fullName || getUserDisplayName(currentUser);
-                    EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', activeName);
-                    if (characterConfig) {
-                      EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, characterConfig);
-                    }
-                  }}
-                />
+                <PhaserGame onSceneReady={handleSceneReady} />
               )}
 
               {/* Right-Side Live Bracket Status Sidebar */}

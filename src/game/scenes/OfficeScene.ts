@@ -501,7 +501,7 @@ export class OfficeScene extends Phaser.Scene {
       if (wantsStandUp) {
         this.standUp();
       } else {
-        this.showPrompt(this.player.x, this.player.y - 78, '[SPASI] Berdiri');
+        this.showPrompt(this.player.x, this.player.y - 58, '[SPASI] Berdiri');
       }
     } else {
       this.player.setDepth((this.player.body as Phaser.Physics.Arcade.Body).bottom);
@@ -1108,23 +1108,23 @@ export class OfficeScene extends Phaser.Scene {
     // Kitchen Island Bar
     this.addSolidProp('counter', 770, 155, 64, 60);
     this.addSolidProp('counter', 850, 155, 64, 60);
-    this.addSolidChair('bar-stool', 770, 205, 36, 36);
-    this.addSolidChair('bar-stool', 850, 205, 36, 36);
+    this.addSolidChair('bar-stool', 770, 205, 22, 20);
+    this.addSolidChair('bar-stool', 850, 205, 22, 20);
     this.addSeat('Kursi Bar', 770, 205, 'north', 'stool', 0, -2);
     this.addSeat('Kursi Bar', 850, 205, 'north', 'stool', 0, -2);
 
     // Cafe Tables & Seating (Break Area)
     this.addDecorativeProp('rug', 340, 330);
     this.addSolidProp('cafe-table', 340, 320, 56, 52);
-    this.addSolidChair('cafe-chair', 280, 320, 38, 38);
-    this.addSolidChair('cafe-chair', 400, 320, 38, 38);
+    this.addSolidChair('cafe-chair', 280, 320, 24, 20);
+    this.addSolidChair('cafe-chair', 400, 320, 24, 20);
     this.addSeat('Kursi Kafe', 280, 320, 'east', 'chair', -4, 0);
     this.addSeat('Kursi Kafe', 400, 320, 'west', 'chair', 4, 0);
 
     this.addDecorativeProp('rug', 650, 330);
     this.addSolidProp('cafe-table', 650, 320, 56, 52);
-    this.addSolidChair('cafe-chair', 590, 320, 38, 38);
-    this.addSolidChair('cafe-chair', 710, 320, 38, 38);
+    this.addSolidChair('cafe-chair', 590, 320, 24, 20);
+    this.addSolidChair('cafe-chair', 710, 320, 24, 20);
     this.addSeat('Kursi Kafe', 590, 320, 'east', 'chair', -4, 0);
     this.addSeat('Kursi Kafe', 710, 320, 'west', 'chair', 4, 0);
 
@@ -1154,23 +1154,23 @@ export class OfficeScene extends Phaser.Scene {
     // Meeting room center accent — NO COMPUTERS in meeting room as requested!
     this.addDecorativeProp('plant-small', 630, 695).setDepth(765);
 
-    // Executive Meeting Chairs around table (Comfortable, uncrowded spacing with solid barriers)
-    this.addSolidChair('office-chair', 470, 645, 42, 38, 665);
-    this.addSolidChair('office-chair', 585, 645, 42, 38, 665);
-    this.addSolidChair('office-chair', 700, 645, 42, 38, 665);
-    this.addSolidChair('office-chair-north', 470, 795, 42, 38);
-    this.addSolidChair('office-chair-north', 585, 795, 42, 38);
-    this.addSolidChair('office-chair-north', 700, 795, 42, 38);
-    this.addSolidChair('office-chair-east', 360, 720, 38, 42, 740); // Head of table facing East towards table
+    // Executive Meeting Chairs around table (Comfortable, uncrowded spacing with compact solid barriers)
+    this.addSolidChair('office-chair', 470, 645, 26, 22, 665);
+    this.addSolidChair('office-chair', 585, 645, 26, 22, 665);
+    this.addSolidChair('office-chair', 700, 645, 26, 22, 665);
+    this.addSolidChair('office-chair-north', 470, 795, 26, 22);
+    this.addSolidChair('office-chair-north', 585, 795, 26, 22);
+    this.addSolidChair('office-chair-north', 700, 795, 26, 22);
+    this.addSolidChair('office-chair-east', 360, 720, 24, 26, 740); // Head of table facing East towards table
 
-    // Register interactive seats in Meeting Room
-    this.addSeat('Kursi Rapat', 470, 645, 'south', 'chair', 0, 4);
-    this.addSeat('Kursi Rapat', 585, 645, 'south', 'chair', 0, 4);
-    this.addSeat('Kursi Rapat', 700, 645, 'south', 'chair', 0, 4);
-    this.addSeat('Kursi Rapat', 470, 795, 'north', 'chair', 0, -4);
-    this.addSeat('Kursi Rapat', 585, 795, 'north', 'chair', 0, -4);
-    this.addSeat('Kursi Rapat', 700, 795, 'north', 'chair', 0, -4);
-    this.addSeat('Kursi Utama Rapat', 360, 720, 'east', 'chair', -6, 0);
+    // Register interactive seats in Meeting Room (Hips rest squarely on seat cushion)
+    this.addSeat('Kursi Rapat', 470, 645, 'south', 'chair', 0, -18);
+    this.addSeat('Kursi Rapat', 585, 645, 'south', 'chair', 0, -18);
+    this.addSeat('Kursi Rapat', 700, 645, 'south', 'chair', 0, -18);
+    this.addSeat('Kursi Rapat', 470, 795, 'north', 'chair', 0, -22);
+    this.addSeat('Kursi Rapat', 585, 795, 'north', 'chair', 0, -22);
+    this.addSeat('Kursi Rapat', 700, 795, 'north', 'chair', 0, -22);
+    this.addSeat('Kursi Utama Rapat', 360, 720, 'east', 'chair', 2, -18);
 
     // Credenza & Storage against top wall
     this.addSolidProp('bookcase', 250, 565, 75, 58);
@@ -1207,10 +1207,10 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('coffee-table', 630, 1075, 64, 34);
     this.addSolidProp('armchair-east', 515, 1075, 36, 32);
     this.addSolidProp('armchair-west', 745, 1075, 36, 32);
-    this.addSeat('Sofa Santai', 595, 1015, 'south', 'sofa', 0, 4);
-    this.addSeat('Sofa Santai', 665, 1015, 'south', 'sofa', 0, 4);
-    this.addSeat('Armchair Santai Kiri', 515, 1075, 'east', 'armchair', 4, -6);
-    this.addSeat('Armchair Santai Kanan', 745, 1075, 'west', 'armchair', -4, -6);
+    this.addSeat('Sofa Santai', 595, 1015, 'south', 'sofa', 0, -18);
+    this.addSeat('Sofa Santai', 665, 1015, 'south', 'sofa', 0, -18);
+    this.addSeat('Armchair Santai Kiri', 515, 1075, 'east', 'armchair', 2, -18);
+    this.addSeat('Armchair Santai Kanan', 745, 1075, 'west', 'armchair', -2, -18);
     this.addDecorativeProp('wall-art', 630, 975);
     this.addDecorativeProp('wall-clock', 790, 975);
 
@@ -1225,23 +1225,22 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('cafe-table', 420, 1290, 56, 52);
     this.addDecorativeProp('cafe-chair', 345, 1290);
     this.addDecorativeProp('cafe-chair', 495, 1290);
-    this.addSeat('Kursi Kafe Santai Kiri', 345, 1290, 'east', 'chair', -4, 0);
-    this.addSeat('Kursi Kafe Santai Kanan', 495, 1290, 'west', 'chair', 4, 0);
+    this.addSeat('Kursi Kafe Santai Kiri', 345, 1290, 'east', 'chair', 2, -18);
+    this.addSeat('Kursi Kafe Santai Kanan', 495, 1290, 'west', 'chair', -2, -18);
     this.addSolidProp('plant-large', 160, 1315, 50, 50);
     this.addDecorativeProp('floor-lamp', 240, 1315);
 
     // Meja & Kursi-kursian Santai Seberang Kanan: Set Meja Diskusi & Armchair (x: 710..890, y: 1290)
-    // Meja di tengah diapit armchair-east (kiri) dan armchair-west (kanan) serta sofa-north
     this.addDecorativeProp('rug', 800, 1290);
     this.addSolidProp('coffee-table', 800, 1270, 64, 34);
     this.addSolidProp('armchair-east', 690, 1270, 36, 32);
     this.addSolidProp('armchair-west', 910, 1270, 36, 32);
     this.addSolidProp('sofa-north', 800, 1330, 104, 48);
-    this.addSeat('Armchair Santai Seberang Kiri', 690, 1270, 'east', 'armchair', 4, -6);
-    this.addSeat('Armchair Santai Seberang Kanan', 910, 1270, 'west', 'armchair', -4, -6);
-    this.addSeat('Sofa Santai Seberang', 765, 1330, 'north', 'sofa', 0, -4);
-    this.addSeat('Sofa Santai Seberang', 835, 1330, 'north', 'sofa', 0, -4);
-    this.addSolidProp('plant-large', 1090, 1315, 50, 50);
+    this.addSeat('Armchair Santai Seberang Kiri', 690, 1270, 'east', 'armchair', 2, -18);
+    this.addSeat('Armchair Santai Seberang Kanan', 910, 1270, 'west', 'armchair', -2, -18);
+    this.addSeat('Sofa Santai Seberang', 765, 1330, 'north', 'sofa', 0, -22);
+    this.addSeat('Sofa Santai Seberang', 835, 1330, 'north', 'sofa', 0, -22);
+    // Tanaman sudut pintu afk room dihapus bersih sesuai permintaan (Image 4)
     this.addDecorativeProp('floor-lamp', 1000, 1315);
 
     // =======================================================================
@@ -1260,15 +1259,15 @@ export class OfficeScene extends Phaser.Scene {
 
     // Kursi Eksekutif Bu Rina di belakang meja utama menghadap South
     this.addDecorativeProp('office-chair', 2150, 155).setDepth(150);
-    this.addSeat('Kursi Pimpinan Eksekutif', 2150, 160, 'south', 'chair', 0, 4);
+    this.addSeat('Kursi Pimpinan Eksekutif', 2150, 160, 'south', 'chair', 0, -18);
 
-    // Kursi Tamu di depan meja utama menghadap ke Bu Rina
+    // Kursi Tamu di depan meja utama menghadap ke Bu Rina (Image 3)
     this.addSolidProp('armchair-north', 2105, 335, 58, 52);  // Guest Chair 1
     this.addSolidProp('armchair-north', 2195, 335, 58, 52);  // Guest Chair 2
 
-    // Register interactive seats in Executive Suite
-    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -4);
-    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -4);
+    // Register interactive seats in Executive Suite (Hips rest squarely in pink armchair cushion)
+    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -22);
+    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -22);
 
     // Cleanly remove the plant at the boss room entrance wall as requested (Image 4)
     this.add.rectangle(2275, 580, 56, 56, 0x515b6b).setDepth(580);
@@ -1344,12 +1343,14 @@ export class OfficeScene extends Phaser.Scene {
     // Meja Kerja Kantoran Tambahan (Menggantikan floor lamp di area kerja - Image 10)
     // 1. Cover legacy floor lamp in background map completely with office carpet patch
     this.add.rectangle(2320, 840, 64, 76, 0x515b6b).setDepth(830);
-    // 2. Add solid office desk unit as requested
-    this.addSolidDesk(2320, 840);
-    this.add.image(2320, 840 - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(840 + 46);
-    this.addSolidChair('office-chair-north', 2320, 840 + 68, 38, 30, 840 + 68 + 44);
-    this.addSeat('Meja Kerja Ekstra', 2320, 840 + 68, 'north', 'chair', 0, -4, 'desk-extra');
-    this.createDeskNametag('desk-extra', 2320, 840 - 32, 'MEJA KERJA');
+    // 2. Add solid office desk unit dimundurkan ke bawah dikit (y = 890) agar leluasa
+    const extraDeskX = 2320;
+    const extraDeskY = 890;
+    this.addSolidDesk(extraDeskX, extraDeskY);
+    this.add.image(extraDeskX, extraDeskY - 24, 'prop-computer').setScale(PROP_SCALE).setDepth(extraDeskY + 46);
+    this.addSolidChair('office-chair-north', extraDeskX, extraDeskY + 68, 24, 20, extraDeskY + 68 + 44);
+    this.addSeat('Meja Kerja Ekstra', extraDeskX, extraDeskY + 68, 'north', 'chair', 0, -22, 'desk-extra');
+    this.createDeskNametag('desk-extra', extraDeskX, extraDeskY - 40, 'MEJA KERJA');
   }
 
   /**
@@ -1388,17 +1389,17 @@ export class OfficeScene extends Phaser.Scene {
     this.add.image(leftDeskX, southDeskY, 'prop-desk').setScale(PROP_SCALE).setDepth(southDeskY + 44);
     this.add.image(rightDeskX, southDeskY, 'prop-desk').setScale(PROP_SCALE).setDepth(southDeskY + 44);
 
-    // Monitors (North desks face North toward user sitting facing South; South desks face South)
-    this.add.image(leftDeskX, northDeskY - 8, 'prop-computer-north').setScale(PROP_SCALE).setDepth(northDeskY + 20);
-    this.add.image(rightDeskX, northDeskY - 8, 'prop-computer-north').setScale(PROP_SCALE).setDepth(northDeskY + 20);
-    this.add.image(leftDeskX, southDeskY - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(southDeskY + 46);
-    this.add.image(rightDeskX, southDeskY - 12, 'prop-computer').setScale(PROP_SCALE).setDepth(southDeskY + 46);
+    // Monitors sitting squarely on the wooden tabletop (not hanging off the bottom apron)
+    this.add.image(leftDeskX, northDeskY - 14, 'prop-computer-north').setScale(PROP_SCALE).setDepth(northDeskY + 45);
+    this.add.image(rightDeskX, northDeskY - 14, 'prop-computer-north').setScale(PROP_SCALE).setDepth(northDeskY + 45);
+    this.add.image(leftDeskX, southDeskY - 24, 'prop-computer').setScale(PROP_SCALE).setDepth(southDeskY + 46);
+    this.add.image(rightDeskX, southDeskY - 24, 'prop-computer').setScale(PROP_SCALE).setDepth(southDeskY + 46);
 
-    // Chairs (Solid props)
-    this.addSolidChair('office-chair', leftDeskX, northDeskY - 56, 38, 30, northDeskY - 56 - 10);
-    this.addSolidChair('office-chair', rightDeskX, northDeskY - 56, 38, 30, northDeskY - 56 - 10);
-    this.addSolidChair('office-chair-north', leftDeskX, southDeskY + 68, 38, 30, southDeskY + 68 + 44);
-    this.addSolidChair('office-chair-north', rightDeskX, southDeskY + 68, 38, 30, southDeskY + 68 + 44);
+    // Chairs (Compact collision barriers so aisles are smooth to navigate)
+    this.addSolidChair('office-chair', leftDeskX, northDeskY - 56, 24, 20, northDeskY - 56 - 10);
+    this.addSolidChair('office-chair', rightDeskX, northDeskY - 56, 24, 20, northDeskY - 56 - 10);
+    this.addSolidChair('office-chair-north', leftDeskX, southDeskY + 68, 24, 20, southDeskY + 68 + 44);
+    this.addSolidChair('office-chair-north', rightDeskX, southDeskY + 68, 24, 20, southDeskY + 68 + 44);
 
     // Unique Desk IDs (desk-1 through desk-20)
     const startNum = (podIndex - 1) * 4 + 1;
@@ -1408,10 +1409,10 @@ export class OfficeScene extends Phaser.Scene {
     const deskId4 = `desk-${startNum + 3}`;
 
     // Register interactive seats with dedicated desk IDs
-    this.addSeat(`Meja ${startNum}`, leftDeskX, northDeskY - 56, 'south', 'chair', 0, 4, deskId1);
-    this.addSeat(`Meja ${startNum + 1}`, rightDeskX, northDeskY - 56, 'south', 'chair', 0, 4, deskId2);
-    this.addSeat(`Meja ${startNum + 2}`, leftDeskX, southDeskY + 68, 'north', 'chair', 0, -4, deskId3);
-    this.addSeat(`Meja ${startNum + 3}`, rightDeskX, southDeskY + 68, 'north', 'chair', 0, -4, deskId4);
+    this.addSeat(`Meja ${startNum}`, leftDeskX, northDeskY - 56, 'south', 'chair', 0, -18, deskId1);
+    this.addSeat(`Meja ${startNum + 1}`, rightDeskX, northDeskY - 56, 'south', 'chair', 0, -18, deskId2);
+    this.addSeat(`Meja ${startNum + 2}`, leftDeskX, southDeskY + 68, 'north', 'chair', 0, -22, deskId3);
+    this.addSeat(`Meja ${startNum + 3}`, rightDeskX, southDeskY + 68, 'north', 'chair', 0, -22, deskId4);
 
     // Solid Physics Collider covering the center desks
     const podCollider = this.add.rectangle(podX, podY, 216, 116, 0x000000, 0);
@@ -1420,16 +1421,16 @@ export class OfficeScene extends Phaser.Scene {
     this.obstacles.add(podCollider);
 
     // Dynamic Desk Nametags (MEJA KAMU for player's desk; MEJA N for colleagues)
-    this.createDeskNametag(deskId1, leftDeskX, northDeskY - 14, `MEJA ${startNum}`);
-    this.createDeskNametag(deskId2, rightDeskX, northDeskY - 14, `MEJA ${startNum + 1}`);
+    this.createDeskNametag(deskId1, leftDeskX, northDeskY - 32, `MEJA ${startNum}`);
+    this.createDeskNametag(deskId2, rightDeskX, northDeskY - 32, `MEJA ${startNum + 1}`);
     this.createDeskNametag(
       deskId3,
       leftDeskX,
-      southDeskY - 32,
+      southDeskY - 42,
       playerDeskCol === 'left' ? 'MEJA KAMU' : `MEJA ${startNum + 2}`,
       playerDeskCol === 'left'
     );
-    this.createDeskNametag(deskId4, rightDeskX, southDeskY - 32, `MEJA ${startNum + 3}`);
+    this.createDeskNametag(deskId4, rightDeskX, southDeskY - 42, `MEJA ${startNum + 3}`);
 
     if (playerDeskCol) {
       const pX = playerDeskCol === 'left' ? leftDeskX : rightDeskX;
@@ -1440,13 +1441,14 @@ export class OfficeScene extends Phaser.Scene {
   /**
    * Helper: Add an interactive, solid chair prop.
    * Solid collision barrier prevents characters from stepping onto or through the chair.
+   * Compact collider size allows smooth navigation through office aisles without snagging.
    */
   private addSolidChair(
     name: string,
     x: number,
     y: number,
-    bodyW: number = 38,
-    bodyH: number = 30,
+    bodyW: number = 24,
+    bodyH: number = 20,
     customDepth?: number
   ): Phaser.GameObjects.Image {
     const defaultDepth = name.includes('north') ? y + 44 : y - 10;
@@ -1455,7 +1457,7 @@ export class OfficeScene extends Phaser.Scene {
       .setScale(PROP_SCALE)
       .setDepth(customDepth !== undefined ? customDepth : defaultDepth);
 
-    const col = this.add.rectangle(x, y + 12, bodyW, bodyH, 0x000000, 0);
+    const col = this.add.rectangle(x, y + 10, bodyW, bodyH, 0x000000, 0);
     this.physics.add.existing(col, true);
     (col.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
     this.obstacles.add(col);
@@ -1576,7 +1578,7 @@ export class OfficeScene extends Phaser.Scene {
     welcomePlaqueText.setDepth(1206);
     this.addSolidProp('plant-large', 1230, 240, 52, 52); // Above pantry door, flush to wall
     this.addSolidProp('plant-large', 1230, 580, 52, 52); // Between pantry & meeting door
-    this.addSolidProp('plant-large', 1230, 990, 52, 52); // Between meeting & AFK room door
+    // Tanaman dekat pintu afk/meeting room dihapus sesuai permintaan (Image 4)
     this.addDecorativeProp('floor-lamp', 1600, 180);
   }
 
@@ -1759,13 +1761,15 @@ export class OfficeScene extends Phaser.Scene {
     }
     this.lastDirection = seat.facing;
 
-    // Depth sorting saat duduk:
+    // Depth sorting saat duduk rapi di atas bantalan kursi
     if (seat.facing === 'north') {
-      this.player.setDepth(seat.y + 20);
+      this.player.setDepth(seat.y + 15);
+    } else if (seat.facing === 'south') {
+      this.player.setDepth(seat.y + 40);
     } else {
-      this.player.setDepth(seat.y + 55);
+      this.player.setDepth(seat.y + 25);
     }
-    this.showPrompt(seat.sitX, seat.sitY - 78, '[SPASI] Berdiri');
+    this.showPrompt(seat.sitX, seat.sitY - 58, '[SPASI] Berdiri');
 
     // Record local occupancy
     const myId = multiplayerService.getSocketId() || 'local-user';
@@ -2148,7 +2152,10 @@ export class OfficeScene extends Phaser.Scene {
         if (this.textures.exists(customKey)) {
           this.textures.remove(customKey);
         }
-        this.textures.addCanvas(customKey, canvas);
+        this.textures.addSpriteSheet(customKey, canvas as any, {
+          frameWidth: 64,
+          frameHeight: 64,
+        });
         this.createCustomAnimations(customKey);
         if (record && record.sprite && record.sprite.active) {
           record.archetypeKey = customKey;
@@ -2165,13 +2172,30 @@ export class OfficeScene extends Phaser.Scene {
     }
   };
 
-  private handleRemotePlayerCharacterUpdated = (data: { socketId: string; archetype: string; characterConfig: any }): void => {
+  private handleRemotePlayerCharacterUpdated = (data: { socketId: string; archetype: string; characterConfig: any; username?: string; fullName?: string }): void => {
     if (!data || !data.socketId) return;
     const record = this.remotePlayers.get(data.socketId);
     if (!record || !record.sprite || !record.sprite.active) return;
 
     record.presence.archetype = data.archetype;
     record.presence.characterConfig = data.characterConfig;
+    if (data.username || data.fullName) {
+      const newName = data.username || data.fullName || 'Rekan';
+      record.nameText.setText(newName);
+      const paddingX = 8;
+      const dotWidth = 12;
+      const pillW = Math.max(52, record.nameText.width + paddingX * 2 + dotWidth);
+      const pillH = 20;
+      const halfW = pillW / 2;
+      const pillY = -54;
+      record.nameBg.clear();
+      record.nameBg.fillStyle(0x141824, 0.88);
+      record.nameBg.lineStyle(1.2, 0x355c5a, 0.9);
+      record.nameBg.fillRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
+      record.nameBg.strokeRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
+      record.statusDot.setPosition(-halfW + 8, pillY);
+      record.nameText.setPosition(-halfW + 16, pillY);
+    }
 
     if (data.archetype === 'custom' && data.characterConfig) {
       const customKey = `char-remote-${data.socketId}`;
@@ -2180,7 +2204,10 @@ export class OfficeScene extends Phaser.Scene {
         if (this.textures.exists(customKey)) {
           this.textures.remove(customKey);
         }
-        this.textures.addCanvas(customKey, canvas);
+        this.textures.addSpriteSheet(customKey, canvas as any, {
+          frameWidth: 64,
+          frameHeight: 64,
+        });
         this.createCustomAnimations(customKey);
         record.archetypeKey = customKey;
         record.sprite.setTexture(customKey);
@@ -2528,15 +2555,29 @@ export class OfficeScene extends Phaser.Scene {
   // =========================================================================
 
   public buildLocalPlayerNametag(): void {
-    let displayName = 'Pengguna';
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const savedUser = localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user');
-        if (savedUser) {
-          const u = JSON.parse(savedUser);
-          displayName = u.username || u.fullName || 'Pengguna';
-        }
-      } catch {}
+    let displayName = this.playerDisplayName;
+    if (!displayName || displayName === 'Pengguna') {
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const savedUser = localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user');
+          if (savedUser) {
+            const u = JSON.parse(savedUser);
+            displayName = u.username || u.fullName || displayName;
+          }
+          if (!displayName || displayName === 'Pengguna') {
+            const savedCfg = localStorage.getItem('neurosim_character_config');
+            if (savedCfg) {
+              const c = JSON.parse(savedCfg);
+              if (c?.name && typeof c.name === 'string' && c.name.trim() && !c.name.includes('Baginda')) {
+                displayName = c.name.trim();
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+    if (!displayName || !displayName.trim()) {
+      displayName = 'Pengguna';
     }
     this.playerDisplayName = displayName;
 
@@ -2991,6 +3032,9 @@ export class OfficeScene extends Phaser.Scene {
   private handleUpdatePlayerCharacter = async (payload: any): Promise<void> => {
     if (!this.player) return;
     const config = payload?.config || payload;
+    if (config?.name && typeof config.name === 'string' && config.name.trim()) {
+      this.setLocalPlayerName(config.name.trim());
+    }
 
     const isCustom = config?.archetype === 'custom';
 
