@@ -1330,17 +1330,6 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('plant-large', 2550, 590, 52, 52);
     this.addSolidProp('plant-large', 2550, 1330, 52, 52);
 
-    // Meja Kerja Kantoran Tambahan (Menggantikan floor lamp di area kerja - Image 10)
-    // 1. Cover legacy floor lamp in background map completely with office carpet patch
-    this.add.rectangle(2320, 840, 64, 76, 0x515b6b).setDepth(830);
-    // 2. Add solid office desk unit dimundurkan ke bawah dikit (y = 890) agar leluasa
-    const extraDeskX = 2320;
-    const extraDeskY = 1004;
-    this.addSolidDesk(extraDeskX, extraDeskY);
-    this.add.image(extraDeskX, extraDeskY - 24, 'prop-computer').setScale(PROP_SCALE).setDepth(extraDeskY + 46);
-    this.addSolidChair('office-chair-north', extraDeskX, extraDeskY + 68, 20, 16, extraDeskY + 68 + 44);
-    this.addSeat('Meja Kerja Ekstra', extraDeskX, extraDeskY + 68, 'north', 'chair', 0, -22, 'desk-extra');
-    this.createDeskNametag('desk-extra', extraDeskX, extraDeskY - 40, 'MEJA KERJA');
   }
 
   /**
