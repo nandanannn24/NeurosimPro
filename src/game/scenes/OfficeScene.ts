@@ -180,6 +180,7 @@ export class OfficeScene extends Phaser.Scene {
   private isSitting = false;
   private currentSeat: SeatSpot | null = null;
   private lastStandPos: { x: number; y: number } = { x: 0, y: 0 };
+  private lastStandUpTime = 0;
 
   // Interaction State
   private isPlayerLocked = false;
@@ -489,10 +490,12 @@ export class OfficeScene extends Phaser.Scene {
       const wantsStandUp = Phaser.Input.Keyboard.JustDown(this.keySpace);
 
       if (wantsStandUp) {
+        if (this.keySpace) this.keySpace.reset();
         this.standUp();
       } else {
         this.showPrompt(this.player.x, this.player.y - 58, '[SPASI] Berdiri');
       }
+      return;
     } else {
       this.player.setDepth((this.player.body as Phaser.Physics.Arcade.Body).bottom);
     }
@@ -1659,6 +1662,8 @@ export class OfficeScene extends Phaser.Scene {
     // 2. Proximity to Sittable Seats
 
     // 3. Proximity to Sittable Seats (Chairs, Armchairs, Sofas)
+    const canSit = Date.now() - this.lastStandUpTime > 600;
+
     let nearestSeat: SeatSpot | null = null;
     let minSeatDist = 76; // Proximity threshold yang responsif dari segala sudut kursi
     for (const seat of this.seats) {
@@ -1680,11 +1685,13 @@ export class OfficeScene extends Phaser.Scene {
       if (isOccupiedByOther) {
         const occupant = nearestSeat.occupiedBy?.fullName || nearestSeat.occupiedBy?.username || 'Rekan';
         this.showPrompt(nearestSeat.x, nearestSeat.y - 45, `[DITEMPATI] ${nearestSeat.name} (${occupant})`);
-      } else {
+      } else if (canSit) {
         this.showPrompt(nearestSeat.x, nearestSeat.y - 45, `Tekan [SPASI] Duduk (${nearestSeat.name})`);
+      } else {
+        this.promptContainer.setVisible(false);
       }
 
-      if (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      if (canSit && (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE))) {
         if (isOccupiedByOther) {
           const occupant = nearestSeat.occupiedBy?.fullName || nearestSeat.occupiedBy?.username || 'Rekan';
           this.showTopBanner(
@@ -1805,6 +1812,16 @@ export class OfficeScene extends Phaser.Scene {
     const seat = this.currentSeat;
     this.isSitting = false;
     this.currentSeat = null;
+    this.lastStandUpTime = Date.now();
+    this.isPlayerLocked = false;
+    this.activeMoveKeys.clear();
+
+    if (this.keySpace) {
+      this.keySpace.reset();
+    }
+    if (this.keyE) {
+      this.keyE.reset();
+    }
 
     // Vacate seat on server & locally
     multiplayerService.vacateSeat(seat.id);
@@ -1828,28 +1845,42 @@ export class OfficeScene extends Phaser.Scene {
 
     if (seat.type === 'chair' || seat.type === 'stool' || seat.type === 'armchair') {
       if (seat.facing === 'south') {
-        // Chair faces South into desk -> step NORTH into the open corridor above the chair!
-        exitY = seat.y - 48;
+        if (seat.name.includes('Pimpinan')) {
+          exitY = seat.y - 28;
+          this.lastDirection = 'south';
+        } else {
+          // Chair faces South into desk -> step NORTH into the open corridor above the chair!
+          exitY = seat.y - 48;
+          this.lastDirection = 'north';
+        }
       } else if (seat.facing === 'north') {
         // Chair faces North into desk -> step SOUTH into the open corridor below the chair!
         exitY = seat.y + 44;
+        this.lastDirection = 'south';
       } else if (seat.facing === 'east') {
         // Chair faces East into table -> step WEST into open aisle on left!
         exitX = seat.x - 42;
+        this.lastDirection = 'west';
       } else if (seat.facing === 'west') {
         // Chair faces West into table -> step EAST into open aisle on right!
         exitX = seat.x + 42;
+        this.lastDirection = 'east';
       }
     } else {
       // For sofas and lounge sets: step into open room space away from the wall
       if (seat.facing === 'south') {
-        exitY = seat.y + 48;
+        exitY = seat.y + 52;
+        exitX = seat.x < 630 ? seat.x - 24 : seat.x + 24;
+        this.lastDirection = 'south';
       } else if (seat.facing === 'north') {
-        exitY = seat.y - 48;
+        exitY = seat.y - 52;
+        this.lastDirection = 'north';
       } else if (seat.facing === 'east') {
         exitX = seat.x + 42;
+        this.lastDirection = 'east';
       } else if (seat.facing === 'west') {
         exitX = seat.x - 42;
+        this.lastDirection = 'west';
       }
     }
 
@@ -1909,6 +1940,8 @@ export class OfficeScene extends Phaser.Scene {
     } else if (key === ' ') {
       // Strictly pressing SPACE stands up and resumes walking!
       if (this.isSitting) {
+        e.preventDefault();
+        if (this.keySpace) this.keySpace.reset();
         this.standUp();
       }
     }
