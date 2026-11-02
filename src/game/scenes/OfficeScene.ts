@@ -485,18 +485,8 @@ export class OfficeScene extends Phaser.Scene {
     if (this.isSitting) {
       this.player.setVelocity(0, 0);
 
-      // Check if user wants to stand up (Pressing SPACE, E, W, A, S, D or Arrows)
-      const wantsStandUp =
-        Phaser.Input.Keyboard.JustDown(this.keySpace) ||
-        Phaser.Input.Keyboard.JustDown(this.keyE) ||
-        this.wasd.W.isDown ||
-        this.wasd.A.isDown ||
-        this.wasd.S.isDown ||
-        this.wasd.D.isDown ||
-        this.cursors.up.isDown ||
-        this.cursors.down.isDown ||
-        this.cursors.left.isDown ||
-        this.cursors.right.isDown;
+      // Check if user wants to stand up: STRICTLY ONLY SPACE KEY!
+      const wantsStandUp = Phaser.Input.Keyboard.JustDown(this.keySpace);
 
       if (wantsStandUp) {
         this.standUp();
@@ -566,7 +556,7 @@ export class OfficeScene extends Phaser.Scene {
         record.container.y = record.targetY;
 
         // Depth sorting saat duduk presisi seragam dengan local player
-        if (record.direction === 'north') {
+        if (record.direction === 'north' && !record.sitAnim?.includes('armchair') && !record.sitAnim?.includes('sofa')) {
           record.container.setDepth(record.targetY + 20);
         } else {
           record.container.setDepth(record.targetY + 55);
@@ -1118,15 +1108,15 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('cafe-table', 340, 320, 56, 52);
     this.addSolidChair('cafe-chair', 280, 320, 24, 20);
     this.addSolidChair('cafe-chair', 400, 320, 24, 20);
-    this.addSeat('Kursi Kafe', 280, 320, 'east', 'chair', -4, 0);
-    this.addSeat('Kursi Kafe', 400, 320, 'west', 'chair', 4, 0);
+    this.addSeat('Kursi Kafe', 280, 320, 'east', 'chair', -12, -26);
+    this.addSeat('Kursi Kafe', 400, 320, 'west', 'chair', 12, -26);
 
     this.addDecorativeProp('rug', 650, 330);
     this.addSolidProp('cafe-table', 650, 320, 56, 52);
     this.addSolidChair('cafe-chair', 590, 320, 24, 20);
     this.addSolidChair('cafe-chair', 710, 320, 24, 20);
-    this.addSeat('Kursi Kafe', 590, 320, 'east', 'chair', -4, 0);
-    this.addSeat('Kursi Kafe', 710, 320, 'west', 'chair', 4, 0);
+    this.addSeat('Kursi Kafe', 590, 320, 'east', 'chair', -12, -26);
+    this.addSeat('Kursi Kafe', 710, 320, 'west', 'chair', 12, -26);
 
     // Refreshment & Greenery (tucked against perimeter)
     this.addSolidProp('water-cooler', 960, 200, 52, 52);
@@ -1170,7 +1160,7 @@ export class OfficeScene extends Phaser.Scene {
     this.addSeat('Kursi Rapat', 470, 795, 'north', 'chair', 0, -22);
     this.addSeat('Kursi Rapat', 585, 795, 'north', 'chair', 0, -22);
     this.addSeat('Kursi Rapat', 700, 795, 'north', 'chair', 0, -22);
-    this.addSeat('Kursi Utama Rapat', 360, 720, 'east', 'chair', 2, -18);
+    this.addSeat('Kursi Utama Rapat', 360, 720, 'east', 'chair', -12, -26);
 
     // Credenza & Storage against top wall
     this.addSolidProp('bookcase', 250, 565, 75, 58);
@@ -1207,10 +1197,10 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('coffee-table', 630, 1075, 64, 34);
     this.addSolidProp('armchair-east', 515, 1075, 36, 32);
     this.addSolidProp('armchair-west', 745, 1075, 36, 32);
-    this.addSeat('Sofa Santai', 595, 1015, 'south', 'sofa', 0, -18);
-    this.addSeat('Sofa Santai', 665, 1015, 'south', 'sofa', 0, -18);
-    this.addSeat('Armchair Santai Kiri', 515, 1075, 'east', 'armchair', 2, -18);
-    this.addSeat('Armchair Santai Kanan', 745, 1075, 'west', 'armchair', -2, -18);
+    this.addSeat('Sofa Santai', 595, 1015, 'south', 'sofa', 0, -24);
+    this.addSeat('Sofa Santai', 665, 1015, 'south', 'sofa', 0, -24);
+    this.addSeat('Armchair Santai Kiri', 515, 1075, 'east', 'armchair', -12, -28);
+    this.addSeat('Armchair Santai Kanan', 745, 1075, 'west', 'armchair', 12, -28);
     this.addDecorativeProp('wall-art', 630, 975);
     this.addDecorativeProp('wall-clock', 790, 975);
 
@@ -1225,8 +1215,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('cafe-table', 420, 1290, 56, 52);
     this.addDecorativeProp('cafe-chair', 345, 1290);
     this.addDecorativeProp('cafe-chair', 495, 1290);
-    this.addSeat('Kursi Kafe Santai Kiri', 345, 1290, 'east', 'chair', 2, -18);
-    this.addSeat('Kursi Kafe Santai Kanan', 495, 1290, 'west', 'chair', -2, -18);
+    this.addSeat('Kursi Kafe Santai Kiri', 345, 1290, 'east', 'chair', -12, -26);
+    this.addSeat('Kursi Kafe Santai Kanan', 495, 1290, 'west', 'chair', 12, -26);
     this.addSolidProp('plant-large', 160, 1315, 50, 50);
     this.addDecorativeProp('floor-lamp', 240, 1315);
 
@@ -1236,10 +1226,10 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-east', 690, 1270, 36, 32);
     this.addSolidProp('armchair-west', 910, 1270, 36, 32);
     this.addSolidProp('sofa-north', 800, 1330, 104, 48);
-    this.addSeat('Armchair Santai Seberang Kiri', 690, 1270, 'east', 'armchair', 2, -18);
-    this.addSeat('Armchair Santai Seberang Kanan', 910, 1270, 'west', 'armchair', -2, -18);
-    this.addSeat('Sofa Santai Seberang', 765, 1330, 'north', 'sofa', 0, -22);
-    this.addSeat('Sofa Santai Seberang', 835, 1330, 'north', 'sofa', 0, -22);
+    this.addSeat('Armchair Santai Seberang Kiri', 690, 1270, 'east', 'armchair', -12, -28);
+    this.addSeat('Armchair Santai Seberang Kanan', 910, 1270, 'west', 'armchair', 12, -28);
+    this.addSeat('Sofa Santai Seberang', 765, 1330, 'north', 'sofa', 0, -16);
+    this.addSeat('Sofa Santai Seberang', 835, 1330, 'north', 'sofa', 0, -16);
     // Tanaman sudut pintu afk room dihapus bersih sesuai permintaan (Image 4)
     this.addDecorativeProp('floor-lamp', 1000, 1315);
 
@@ -1266,11 +1256,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-north', 2195, 335, 58, 52);  // Guest Chair 2
 
     // Register interactive seats in Executive Suite (Hips rest squarely in pink armchair cushion)
-    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -22);
-    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -22);
-
-    // Cleanly remove the plant at the boss room entrance wall as requested (Image 4)
-    this.add.rectangle(2275, 580, 56, 56, 0x515b6b).setDepth(580);
+    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -14);
+    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -14);
 
     // Executive Library Wall
     this.addSolidProp('bookcase', 1850, 140, 75, 58);
@@ -1319,10 +1306,10 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('coffee-table', 2100, 1295, 64, 38);
     this.addSolidProp('armchair-east', 1995, 1295, 36, 32);
     this.addSolidProp('armchair-west', 2205, 1295, 36, 32);
-    this.addSeat('Sofa Breakout Kiri', 2065, 1245, 'south', 'sofa', 0, 4);
-    this.addSeat('Sofa Breakout Kanan', 2135, 1245, 'south', 'sofa', 0, 4);
-    this.addSeat('Armchair Breakout Kiri', 1995, 1295, 'east', 'armchair', -4, 0);
-    this.addSeat('Armchair Breakout Kanan', 2205, 1295, 'west', 'armchair', 4, 0);
+    this.addSeat('Sofa Breakout Kiri', 2065, 1245, 'south', 'sofa', 0, -24);
+    this.addSeat('Sofa Breakout Kanan', 2135, 1245, 'south', 'sofa', 0, -24);
+    this.addSeat('Armchair Breakout Kiri', 1995, 1295, 'east', 'armchair', -12, -28);
+    this.addSeat('Armchair Breakout Kanan', 2205, 1295, 'west', 'armchair', 12, -28);
     this.addDecorativeProp('floor-lamp', 2275, 1245);
     this.addSolidProp('plant-large', 1915, 1270, 52, 52);
 
@@ -1762,12 +1749,12 @@ export class OfficeScene extends Phaser.Scene {
     this.lastDirection = seat.facing;
 
     // Depth sorting saat duduk rapi di atas bantalan kursi
-    if (seat.facing === 'north') {
-      this.player.setDepth(seat.y + 15);
-    } else if (seat.facing === 'south') {
-      this.player.setDepth(seat.y + 40);
+    if (seat.type === 'armchair' || seat.type === 'sofa') {
+      this.player.setDepth(seat.y + 55);
+    } else if (seat.facing === 'north') {
+      this.player.setDepth(seat.y + 20);
     } else {
-      this.player.setDepth(seat.y + 25);
+      this.player.setDepth(seat.y + 55);
     }
     this.showPrompt(seat.sitX, seat.sitY - 58, '[SPASI] Berdiri');
 
@@ -1914,11 +1901,13 @@ export class OfficeScene extends Phaser.Scene {
 
     const key = e.key.toLowerCase();
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
-      this.activeMoveKeys.add(key);
       if (this.isSitting) {
-        this.standUp();
+        // While sitting, pressing WASD or Arrow keys has NO effect at all!
+        return;
       }
-    } else if (key === ' ' || key === 'e') {
+      this.activeMoveKeys.add(key);
+    } else if (key === ' ') {
+      // Strictly pressing SPACE stands up and resumes walking!
       if (this.isSitting) {
         this.standUp();
       }
