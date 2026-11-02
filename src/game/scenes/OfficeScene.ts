@@ -1345,10 +1345,10 @@ export class OfficeScene extends Phaser.Scene {
     this.add.rectangle(2320, 840, 64, 76, 0x515b6b).setDepth(830);
     // 2. Add solid office desk unit dimundurkan ke bawah dikit (y = 890) agar leluasa
     const extraDeskX = 2320;
-    const extraDeskY = 890;
+    const extraDeskY = 1004;
     this.addSolidDesk(extraDeskX, extraDeskY);
     this.add.image(extraDeskX, extraDeskY - 24, 'prop-computer').setScale(PROP_SCALE).setDepth(extraDeskY + 46);
-    this.addSolidChair('office-chair-north', extraDeskX, extraDeskY + 68, 24, 20, extraDeskY + 68 + 44);
+    this.addSolidChair('office-chair-north', extraDeskX, extraDeskY + 68, 20, 16, extraDeskY + 68 + 44);
     this.addSeat('Meja Kerja Ekstra', extraDeskX, extraDeskY + 68, 'north', 'chair', 0, -22, 'desk-extra');
     this.createDeskNametag('desk-extra', extraDeskX, extraDeskY - 40, 'MEJA KERJA');
   }
@@ -1396,10 +1396,10 @@ export class OfficeScene extends Phaser.Scene {
     this.add.image(rightDeskX, southDeskY - 24, 'prop-computer').setScale(PROP_SCALE).setDepth(southDeskY + 46);
 
     // Chairs (Compact collision barriers so aisles are smooth to navigate)
-    this.addSolidChair('office-chair', leftDeskX, northDeskY - 56, 24, 20, northDeskY - 56 - 10);
-    this.addSolidChair('office-chair', rightDeskX, northDeskY - 56, 24, 20, northDeskY - 56 - 10);
-    this.addSolidChair('office-chair-north', leftDeskX, southDeskY + 68, 24, 20, southDeskY + 68 + 44);
-    this.addSolidChair('office-chair-north', rightDeskX, southDeskY + 68, 24, 20, southDeskY + 68 + 44);
+    this.addSolidChair('office-chair', leftDeskX, northDeskY - 56, 20, 16, northDeskY - 56 - 10);
+    this.addSolidChair('office-chair', rightDeskX, northDeskY - 56, 20, 16, northDeskY - 56 - 10);
+    this.addSolidChair('office-chair-north', leftDeskX, southDeskY + 68, 20, 16, southDeskY + 68 + 44);
+    this.addSolidChair('office-chair-north', rightDeskX, southDeskY + 68, 20, 16, southDeskY + 68 + 44);
 
     // Unique Desk IDs (desk-1 through desk-20)
     const startNum = (podIndex - 1) * 4 + 1;
