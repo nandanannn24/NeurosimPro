@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../modals/AuthModal';
 import { CharacterCustomization, CharacterDirection } from '../../types/character';
-import { OfficeTask } from '../../types/conversation';
+import { OfficeTask } from '../../types/task';
 import { CharacterCanvasPreview } from '../character/CharacterCanvasPreview';
 
 export interface OfficeRoom {

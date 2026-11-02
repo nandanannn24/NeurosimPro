@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from './components/layout/Header';
-import { ProposalModal } from './components/modals/ProposalModal';
 import { CharacterCustomizerModal } from './components/modals/CharacterCustomizerModal';
 import { CharacterCustomization } from './types/character';
 import { DEFAULT_CHARACTER } from './config/characterOptions';
@@ -10,13 +9,11 @@ import { LobbyBracketSelectorModal } from './components/modals/LobbyBracketSelec
 import { LobbyBracket } from './types/lobby';
 import { AuthModal, UserProfile } from './components/modals/AuthModal';
 import { OnlineRoomModal } from './components/modals/OnlineRoomModal';
-import { ScenarioList } from './components/scenarios/ScenarioList';
 import { PhaserGame } from './game/PhaserGame';
 import { EventBus, GAME_EVENTS } from './game/EventBus';
-import { useConversation } from './hooks/useConversation';
-import { SCENARIOS, INITIAL_TASKS } from './config/scenarios';
 import { TextScale } from './components/ui/A11yControls';
-import { OfficeTask } from './types/conversation';
+import { OfficeTask, TaskCategory } from './types/task';
+import { INITIAL_OFFICE_TASKS } from './config/officeTasks';
 import { OfficeRoom, CreateRoomInput } from './types/room';
 import { DEFAULT_ROOMS, DEFAULT_CURRENT_ROOM } from './config/defaultRooms';
 
@@ -63,7 +60,6 @@ export const App: React.FC = () => {
 
   const [selectedRoom, setSelectedRoom] = useState<DashboardRoom>(OFFICE_ROOMS[0]);
   const [mode, setMode] = useState<'2d' | 'list'>('2d');
-  const [isProposalOpen, setIsProposalOpen] = useState(false);
   const [isTodoListOpen, setIsTodoListOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
@@ -144,18 +140,15 @@ export const App: React.FC = () => {
 
   const [tasks, setTasks] = useState<OfficeTask[]>(() => {
     const saved = localStorage.getItem('neurosim_tasks');
-    if (!saved) return INITIAL_TASKS;
+    if (!saved) return INITIAL_OFFICE_TASKS;
     try {
-      const parsed: OfficeTask[] = JSON.parse(saved);
+      const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((t) => {
-          const found = INITIAL_TASKS.find((it) => it.id === t.id);
-          return found ? { ...t, zone: found.zone, title: found.title, npc: found.npc } : t;
-        });
+        return parsed;
       }
-      return INITIAL_TASKS;
+      return INITIAL_OFFICE_TASKS;
     } catch {
-      return INITIAL_TASKS;
+      return INITIAL_OFFICE_TASKS;
     }
   });
 
@@ -336,6 +329,9 @@ export const App: React.FC = () => {
       window.dispatchEvent(
         new CustomEvent('neurosim_user_profile_updated', { detail: currentUser })
       );
+      const activeName = currentUser.username || currentUser.fullName || getUserDisplayName(currentUser);
+      EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', activeName);
+      EventBus.emit('neurosim_user_profile_updated', currentUser);
     }
   }, [currentUser]);
 
@@ -390,23 +386,29 @@ export const App: React.FC = () => {
     localStorage.setItem('neurosim_current_room_code', currentRoom.code);
   }, [currentRoom]);
 
-  // Conversation hook
-  const {
-    activeScenarioId,
-    level,
-    userGoal,
-    transcript,
-    turnCount,
-    isLoading,
-    evaluation,
-    previousAttempt,
-    startConversation,
-    sendMessage,
-    skipTurn,
-    evaluateSession,
-    retrySession,
-    resetSession,
-  } = useConversation();
+  // Task management handlers for interactive office board
+  const handleToggleTask = useCallback((taskId: string) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
+    );
+  }, []);
+
+  const handleAddTask = useCallback((title: string, category: TaskCategory) => {
+    const newTask: OfficeTask = {
+      id: `task-${Date.now()}`,
+      title,
+      category,
+      zone: 'Kantor Pusat NeuroSim Pro',
+      assignedTo: currentUser?.fullName || 'Anggota Tim',
+      completed: false,
+      createdAt: new Date().toISOString(),
+    };
+    setTasks((prev) => [newTask, ...prev]);
+  }, [currentUser]);
+
+  const handleDeleteTask = useCallback((taskId: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  }, []);
 
   useEffect(() => {
     if (mode === '2d') {
@@ -423,101 +425,48 @@ export const App: React.FC = () => {
     localStorage.setItem('neurosim_tasks', JSON.stringify(tasks));
   }, [tasks]);
 
+  // Listen to Phaser [E] interaction event on Agenda Board
   useEffect(() => {
-    if (evaluation && activeScenarioId) {
-      setTasks((prev) =>
-        prev.map((t) => (t.scenarioId === activeScenarioId ? { ...t, completed: true } : t))
-      );
-
-      // Simpan ke riwayat lokal user jika login
-      if (currentUser) {
-        const newRecord = {
-          id: Date.now(),
-          scenario_id: activeScenarioId,
-          level,
-          rekomendasi_level: evaluation.rekomendasi_level,
-          created_at: new Date().toISOString(),
-        };
-        setUserHistory((prev) => {
-          const updated = [newRecord, ...prev];
-          localStorage.setItem('neurosim_user_history', JSON.stringify(updated));
-          return updated;
-        });
-      }
-    }
-  }, [evaluation, activeScenarioId, currentUser, level]);
-
-  const handleStartScenario = useCallback(
-    (scenarioId: string, lvl: 1 | 2 | 3 = 2, goal?: string) => {
-      const sc = SCENARIOS.find((s) => s.id === scenarioId);
-      if (!sc) return;
-      startConversation(scenarioId, sc.initialDialogue, lvl, goal || sc.defaultGoal);
-    },
-    [startConversation]
-  );
-
-  // Listen to Phaser [E] interaction event
-  useEffect(() => {
-    const handleOpenDialog = (data: { scenarioId: string; level?: 1 | 2 | 3; goal?: string }) => {
-      handleStartScenario(data.scenarioId, data.level ?? 2, data.goal);
-    };
-
     const handleOpenTodoList = () => {
       setIsTodoListOpen(true);
     };
 
-    EventBus.on(GAME_EVENTS.OPEN_DIALOG, handleOpenDialog);
     EventBus.on(GAME_EVENTS.OPEN_TODO_LIST, handleOpenTodoList);
 
     return () => {
-      EventBus.off(GAME_EVENTS.OPEN_DIALOG, handleOpenDialog);
       EventBus.off(GAME_EVENTS.OPEN_TODO_LIST, handleOpenTodoList);
     };
-  }, [handleStartScenario]);
+  }, []);
 
-  // Pause keyboard capture when any modal or background view is active
+  // Pause keyboard capture ONLY when full-screen blocking modals are active
   useEffect(() => {
-    const isAnyModalOpen =
+    const isBlockingModalOpen =
       isAuthOpen ||
-      isProposalOpen ||
       isTodoListOpen ||
-      isOfficeChatOpen ||
-      isParticipantsOpen ||
       isCustomizerOpen ||
       isRoomModalOpen ||
+      isLobbySelectorOpen ||
+      isAdminBillingOpen ||
       currentView !== 'simulation';
-    if (isAnyModalOpen) {
+
+    if (isBlockingModalOpen) {
       EventBus.emit(GAME_EVENTS.PAUSE_INPUT);
-    } else if (!activeScenarioId) {
+    } else {
       EventBus.emit(GAME_EVENTS.RESUME_INPUT);
     }
   }, [
     isAuthOpen,
-    isProposalOpen,
     isTodoListOpen,
-    isOfficeChatOpen,
-    isParticipantsOpen,
     isCustomizerOpen,
     isRoomModalOpen,
+    isLobbySelectorOpen,
+    isAdminBillingOpen,
     currentView,
-    activeScenarioId,
   ]);
-
-  const handleCloseDialogue = () => {
-    resetSession();
-    EventBus.emit(GAME_EVENTS.CLOSE_DIALOG);
-  };
 
   const handleCloseTodoList = () => {
     setIsTodoListOpen(false);
     EventBus.emit(GAME_EVENTS.CLOSE_TODO_LIST);
-  };
-
-  const handleRetryDialogue = () => {
-    if (!activeScenarioId) return;
-    const sc = SCENARIOS.find((s) => s.id === activeScenarioId);
-    if (!sc) return;
-    retrySession(sc.initialDialogue);
   };
 
   // Gabung ke room multiplayer online saat berada di tampilan simulasi
@@ -712,7 +661,6 @@ export const App: React.FC = () => {
   };
 
   const completedCount = tasks.filter((t) => t.completed).length;
-  const activeScenario = SCENARIOS.find((s) => s.id === activeScenarioId);
 
   return (
     <div
@@ -731,7 +679,6 @@ export const App: React.FC = () => {
           onEnterSimulation={() => setIsLobbySelectorOpen(true)}
           onOpenCustomizer={() => setIsCustomizerOpen(true)}
           onOpenAuth={() => setIsAuthOpen(true)}
-          onOpenProposal={() => setIsProposalOpen(true)}
         />
       )}
 
@@ -800,7 +747,6 @@ export const App: React.FC = () => {
           onChangeTextScale={setTextScale}
           highContrast={highContrast}
           onToggleHighContrast={() => setHighContrast((c) => !c)}
-          onOpenProposal={() => setIsProposalOpen(true)}
           onOpenTodoList={() => setIsTodoListOpen(true)}
           completedCount={completedCount}
           totalCount={tasks.length}
@@ -824,7 +770,17 @@ export const App: React.FC = () => {
           {mode === '2d' ? (
             <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
-              {currentView === 'simulation' && <PhaserGame />}
+              {currentView === 'simulation' && (
+                <PhaserGame
+                  onSceneReady={() => {
+                    const activeName = currentUser?.username || currentUser?.fullName || getUserDisplayName(currentUser);
+                    EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', activeName);
+                    if (characterConfig) {
+                      EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, characterConfig);
+                    }
+                  }}
+                />
+              )}
 
               {/* Right-Side Live Bracket Status Sidebar */}
               {currentView === 'simulation' && (
@@ -1001,14 +957,10 @@ export const App: React.FC = () => {
         isOpen={isTodoListOpen}
         onClose={handleCloseTodoList}
         tasks={tasks}
-        onSelectTask={(scId) => {
-          setMode('2d');
-          handleStartScenario(scId);
-        }}
+        onToggleTask={handleToggleTask}
+        onAddTask={handleAddTask}
+        onDeleteTask={handleDeleteTask}
       />
-
-      {/* Proposal Dossier Modal */}
-      <ProposalModal isOpen={isProposalOpen} onClose={() => setIsProposalOpen(false)} />
 
       {/* Employee Auth & Profile Modal (MySQL Synced) */}
       <AuthModal

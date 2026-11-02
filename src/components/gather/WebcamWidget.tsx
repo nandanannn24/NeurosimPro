@@ -26,7 +26,7 @@ export const WebcamWidget: React.FC<Props> = ({
   onClose,
   isMicOn,
   onToggleMic,
-  userName = 'Rifat (Kamu)',
+  userName = 'Pengguna (Anda)',
   userAvatar = '/assets/characters/resident/standing/south.png',
   userRole = 'Frontend & UI/UX',
 }) => {
