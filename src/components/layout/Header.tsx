@@ -26,6 +26,8 @@ interface Props {
   currentLobbyName?: string;
   onOpenLobbySelector?: () => void;
   onOpenAdminBilling?: () => void;
+  onNavigateAdmin?: () => void;
+  onNavigateLeader?: () => void;
 }
 
 const getUserDisplayName = (user: UserProfile | null): string => {
@@ -58,7 +60,11 @@ export const Header: React.FC<Props> = ({
   currentLobbyName,
   onOpenLobbySelector,
   onOpenAdminBilling,
+  onNavigateAdmin,
+  onNavigateLeader,
 }) => {
+  const isAdmin = currentUser?.role?.toLowerCase().includes('admin') || (currentUser as any)?.roleSlug === 'super_admin';
+  const isLeader = currentUser?.role?.toLowerCase().includes('leader') || currentUser?.role?.toLowerCase().includes('manager') || (currentUser as any)?.roleSlug === 'manager';
   const roomName = currentRoom?.name || 'Kantor Pusat NeuroSim Pro';
   const roomCode = currentRoom?.code || 'NEURO-HQ-88';
   const displayName = getUserDisplayName(currentUser);
@@ -119,16 +125,28 @@ export const Header: React.FC<Props> = ({
       {/* 2. Middle: Admin Billing & Agenda Trigger */}
       <div className="flex items-center gap-1.5 sm:gap-2">
 
-        {/* Admin Billing Modal Trigger */}
-        {onOpenAdminBilling && (
+        {/* Admin Dashboard Route Trigger (/x90x9admin) */}
+        {isAdmin && onNavigateAdmin && (
           <button
             type="button"
-            onClick={onOpenAdminBilling}
-            title="Kelola 5 Server Bracket, Akses Perusahaan & Billing Key"
+            onClick={onNavigateAdmin}
+            title="Dashboard Administrator (/x90x9admin)"
             className="px-2.5 py-1 text-xs font-semibold rounded border border-amber-300 bg-amber-50/90 hover:bg-amber-100 text-amber-900 transition-colors flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-            <span className="hidden sm:inline font-bold">Admin Billing</span>
+            <span className="hidden sm:inline font-bold">Admin /x90x9admin</span>
+          </button>
+        )}
+
+        {/* Leader Dashboard Route Trigger (/leader) */}
+        {isLeader && onNavigateLeader && (
+          <button
+            type="button"
+            onClick={onNavigateLeader}
+            title="Dashboard Leader / Bos (/leader)"
+            className="px-2.5 py-1 text-xs font-semibold rounded border border-teal/40 bg-teal/10 hover:bg-teal/20 text-teal transition-colors flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
+          >
+            <span className="hidden sm:inline font-bold">Dashboard Leader</span>
           </button>
         )}
 

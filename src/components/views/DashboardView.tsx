@@ -119,6 +119,9 @@ interface Props {
   onBackToLanding?: () => void;
   onStartVideoConference?: () => void;
   onOpenAdminBilling?: () => void;
+  onNavigateAdmin?: () => void;
+  onNavigateLeader?: () => void;
+  onNavigateGuestLobby?: () => void;
 }
 
 export const DashboardView: React.FC<Props> = ({
@@ -135,7 +138,12 @@ export const DashboardView: React.FC<Props> = ({
   onBackToLanding,
   onStartVideoConference,
   onOpenAdminBilling,
+  onNavigateAdmin,
+  onNavigateLeader,
+  onNavigateGuestLobby,
 }) => {
+  const isAdmin = currentUser?.role?.toLowerCase().includes('admin') || (currentUser as any)?.roleSlug === 'super_admin';
+  const isLeader = currentUser?.role?.toLowerCase().includes('leader') || currentUser?.role?.toLowerCase().includes('manager') || (currentUser as any)?.roleSlug === 'manager';
   const [previewDirection, setPreviewDirection] = useState<CharacterDirection>('south');
   const [lobbies, setLobbies] = useState<any[]>([]);
 
@@ -193,14 +201,39 @@ export const DashboardView: React.FC<Props> = ({
             </button>
           )}
 
-          {onOpenAdminBilling && (
+          {onNavigateAdmin && isAdmin && (
             <button
               type="button"
-              onClick={onOpenAdminBilling}
-              className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              onClick={onNavigateAdmin}
+              className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 transition-all hover:scale-105 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Akses Dashboard Admin (/x90x9admin)"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-              <span className="hidden sm:inline">Admin Billing</span>
+              <span className="hidden sm:inline">Admin /x90x9admin</span>
+            </button>
+          )}
+
+          {onNavigateLeader && isLeader && (
+            <button
+              type="button"
+              onClick={onNavigateLeader}
+              className="px-3 py-1.5 rounded-lg border border-teal/40 bg-teal/10 hover:bg-teal/20 text-xs font-bold text-teal transition-all hover:scale-105 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Akses Dashboard Leader (/leader)"
+            >
+              <Briefcase className="w-3.5 h-3.5 text-teal" />
+              <span className="hidden sm:inline">Dashboard Leader</span>
+            </button>
+          )}
+
+          {onNavigateGuestLobby && (
+            <button
+              type="button"
+              onClick={onNavigateGuestLobby}
+              className="px-3 py-1.5 rounded-lg border border-[#d1c7b5] bg-cream hover:bg-sand text-xs font-bold text-ink transition-all hover:scale-105 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Akses Lobby Tamu (/guest-lobby)"
+            >
+              <DoorOpen className="w-3.5 h-3.5 text-ochre" />
+              <span className="hidden md:inline">Lobby Tamu</span>
             </button>
           )}
 

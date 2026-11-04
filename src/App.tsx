@@ -21,6 +21,11 @@ import { DEFAULT_ROOMS, DEFAULT_CURRENT_ROOM } from './config/defaultRooms';
 import { LandingView } from './components/views/LandingView';
 import { DashboardView, OfficeRoom as DashboardRoom, OFFICE_ROOMS } from './components/views/DashboardView';
 import { RoomLobbyView } from './components/views/RoomLobbyView';
+import { AdminDashboardView } from './components/views/AdminDashboardView';
+import { LeaderDashboardView } from './components/views/LeaderDashboardView';
+import { GuestLobbyView } from './components/views/GuestLobbyView';
+import { TopCameraBar } from './components/gather/TopCameraBar';
+import { MinimapWidget } from './components/gather/MinimapWidget';
 
 // Virtual office workspace components
 import { GatherDock, UserStatus } from './components/gather/GatherDock';
@@ -36,7 +41,7 @@ import { ScreenShareWidget } from './components/gather/ScreenShareWidget';
 import { multiplayerService } from './services/multiplayer.service';
 import { PlayerPresence, PlayerChatPacket } from './types/multiplayer';
 
-export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation';
+export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation' | 'admin' | 'leader' | 'guest-lobby';
 
 
 // Obrolan kantor dimulai dalam kondisi kosong bersih (dinamis)
@@ -52,8 +57,54 @@ const getUserDisplayName = (user: UserProfile | null, fallback = 'Pengguna'): st
 };
 
 export const App: React.FC = () => {
-  // Top-Level User Flow Navigation: landing -> dashboard -> room-lobby -> simulation
+  // Top-Level User Flow Navigation: landing -> dashboard -> room-lobby -> simulation | admin | leader | guest-lobby
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
+
+  const navigateTo = useCallback((view: AppView, path?: string) => {
+    setCurrentView(view);
+    if (typeof window !== 'undefined' && path) {
+      window.history.pushState({}, '', path);
+    }
+  }, []);
+
+  // Sync URL Path on initial load and browser back/forward buttons
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const syncFromLocation = () => {
+        const path = window.location.pathname.toLowerCase();
+        if (path.includes('/x90x9admin')) {
+          setCurrentView('admin');
+        } else if (path.includes('/leader')) {
+          setCurrentView('leader');
+        } else if (path.includes('/guest-lobby') || path.includes('/tamu')) {
+          setCurrentView('guest-lobby');
+        } else if (path.includes('/simulation')) {
+          setCurrentView('simulation');
+        } else {
+          const params = new URLSearchParams(window.location.search);
+          const v = params.get('view');
+          if (v === 'admin') setCurrentView('admin');
+          else if (v === 'leader') setCurrentView('leader');
+          else if (v === 'guest-lobby') setCurrentView('guest-lobby');
+        }
+      };
+
+      syncFromLocation();
+      window.addEventListener('popstate', syncFromLocation);
+      return () => window.removeEventListener('popstate', syncFromLocation);
+    }
+  }, []);
+
+  // Listen to status changes from Game Engine (e.g. Workstation sit -> Sedang Bekerja)
+  useEffect(() => {
+    const handleStatusChanged = (st: UserStatus) => {
+      setUserStatus(st);
+    };
+    EventBus.on('neurosim_status_changed', handleStatusChanged);
+    return () => {
+      EventBus.off('neurosim_status_changed', handleStatusChanged);
+    };
+  }, []);
 
   const [selectedRoom, setSelectedRoom] = useState<DashboardRoom>(OFFICE_ROOMS[0]);
   const [mode, setMode] = useState<'2d' | 'list'>('2d');
@@ -689,6 +740,49 @@ export const App: React.FC = () => {
       } ${highContrast ? 'contrast-125' : ''}`}
     >
       {/* ------------------------------------------------------------------- */}
+      {/* 0. SPECIALIZED DASHBOARDS & ACCESS VIEWS (Admin, Leader, Guest)     */}
+      {/* ------------------------------------------------------------------- */}
+      {currentView === 'admin' && (
+        <AdminDashboardView
+          currentUser={currentUser}
+          onNavigateHome={() => navigateTo('dashboard', '/')}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onEnterRoom={(bracketId) => {
+            setCurrentLobbyId(bracketId);
+            navigateTo('simulation', '/simulation');
+            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+          }}
+        />
+      )}
+
+      {currentView === 'leader' && (
+        <LeaderDashboardView
+          currentUser={currentUser}
+          onNavigateHome={() => navigateTo('dashboard', '/')}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onEnterRoom={(bracketId) => {
+            setCurrentLobbyId(bracketId);
+            navigateTo('simulation', '/simulation');
+            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+          }}
+          onStartVideoConference={handleOpenVideoConference}
+        />
+      )}
+
+      {currentView === 'guest-lobby' && (
+        <GuestLobbyView
+          currentUser={currentUser}
+          onNavigateHome={() => navigateTo('dashboard', '/')}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onEnterSimulationWithKey={(lobbyId) => {
+            setCurrentLobbyId(lobbyId);
+            navigateTo('simulation', '/simulation');
+            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+          }}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------- */}
       {/* 1. SCREEN VIEW: UNIFIED DASHBOARD WORKSPACE PORTAL                   */}
       {/* ------------------------------------------------------------------- */}
       {(currentView === 'dashboard' || currentView === 'landing') && (
@@ -727,6 +821,9 @@ export const App: React.FC = () => {
           onOpenAuth={() => setIsAuthOpen(true)}
           onLogout={handleLogout}
           onOpenAdminBilling={() => setIsAdminBillingOpen(true)}
+          onNavigateAdmin={() => navigateTo('admin', '/x90x9admin')}
+          onNavigateLeader={() => navigateTo('leader', '/leader')}
+          onNavigateGuestLobby={() => navigateTo('guest-lobby', '/guest-lobby')}
         />
       )}
 
@@ -783,6 +880,8 @@ export const App: React.FC = () => {
           currentLobbyName={currentLobbyName}
           onOpenLobbySelector={() => setIsLobbySelectorOpen(true)}
           onOpenAdminBilling={() => setIsAdminBillingOpen(true)}
+          onNavigateAdmin={() => navigateTo('admin', '/x90x9admin')}
+          onNavigateLeader={() => navigateTo('leader', '/leader')}
         />
 
         {/* Main Workspace Viewport */}
@@ -792,6 +891,39 @@ export const App: React.FC = () => {
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
               {currentView === 'simulation' && (
                 <PhaserGame onSceneReady={handleSceneReady} />
+              )}
+
+              {/* Zoom-like Top Camera Conference Strip (Non-blocking) */}
+              {currentView === 'simulation' && (
+                <TopCameraBar
+                  isCamOn={isCamOn}
+                  isMicOn={isMicOn}
+                  onToggleCam={() => {
+                    setIsCamOn((c) => {
+                      const next = !c;
+                      multiplayerService.sendMediaState({ isCamOn: next });
+                      return next;
+                    });
+                  }}
+                  onToggleMic={() => {
+                    setIsMicOn((m) => {
+                      const next = !m;
+                      multiplayerService.sendMediaState({ isMicOn: next });
+                      return next;
+                    });
+                  }}
+                  userName={getUserDisplayName(currentUser)}
+                  userAvatar={currentUser?.avatar}
+                  remotePlayers={onlineRemotePlayers}
+                />
+              )}
+
+              {/* Bottom-Left Minimap Radar Widget */}
+              {currentView === 'simulation' && (
+                <MinimapWidget
+                  currentZoneName={currentZoneName}
+                  remotePlayers={onlineRemotePlayers}
+                />
               )}
 
               {/* Right-Side Live Bracket Status Sidebar (Unified Participants Panel) */}

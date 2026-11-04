@@ -81,13 +81,12 @@ function neurosimApiPlugin(): Plugin {
           return;
         }
 
-        // 3. Endpoint Admin Billing Sessions
-        if (req.method === 'GET' && url === '/api/admin/billing') {
+        // 3. Endpoint Admin Overview (Realtime System Stats)
+        if (req.method === 'GET' && url === '/api/admin/overview') {
           try {
-            const sessions = lobbyStore.getBillingSessions();
-            const lobbies = lobbyStore.getLobbies();
+            const overview = lobbyStore.getSystemOverview();
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ success: true, sessions, lobbies }));
+            res.end(JSON.stringify({ success: true, overview }));
           } catch (err: any) {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
@@ -96,7 +95,125 @@ function neurosimApiPlugin(): Plugin {
           return;
         }
 
-        // 4. Endpoint Admin Update Billing & Lobby Allocation
+        // 4. Endpoint Admin Users Management
+        if (req.method === 'GET' && url === '/api/admin/users') {
+          try {
+            const users = lobbyStore.getUsers();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, users }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/admin/users/update') {
+          try {
+            const body = await parseJsonBody(req);
+            const result = lobbyStore.updateUser(Number(body.id), body);
+            res.statusCode = result.success ? 200 : 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/admin/users/create') {
+          try {
+            const body = await parseJsonBody(req);
+            const result = lobbyStore.createUser(body);
+            res.statusCode = result.success ? 200 : 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 5. Endpoint Admin Companies & Humas (PIC) Management
+        if (req.method === 'GET' && url === '/api/admin/companies') {
+          try {
+            const companies = lobbyStore.getCompanies();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, companies }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/admin/companies/update') {
+          try {
+            const body = await parseJsonBody(req);
+            const result = lobbyStore.updateCompany(body.id, body);
+            res.statusCode = result.success ? 200 : 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 6. Endpoint Admin Billing Sessions & Brackets
+        if (req.method === 'GET' && url === '/api/admin/billing') {
+          try {
+            const sessions = lobbyStore.getBillingSessions();
+            const lobbies = lobbyStore.getLobbies();
+            const companies = lobbyStore.getCompanies();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, sessions, lobbies, companies }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/admin/billing/create') {
+          try {
+            const body = await parseJsonBody(req);
+            const result = lobbyStore.createBillingSession(body);
+            res.statusCode = result.success ? 200 : 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/admin/billing/session/update') {
+          try {
+            const body = await parseJsonBody(req);
+            const result = lobbyStore.updateBillingSession(body.sessionId, body);
+            res.statusCode = result.success ? 200 : 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
         if (req.method === 'POST' && url === '/api/admin/billing/update') {
           try {
             const body = await parseJsonBody(req);
@@ -112,7 +229,6 @@ function neurosimApiPlugin(): Plugin {
           return;
         }
 
-        // 5. Endpoint Admin Generate Billing Key
         if (req.method === 'POST' && url === '/api/admin/billing/generate-key') {
           try {
             const body = await parseJsonBody(req);
@@ -127,7 +243,68 @@ function neurosimApiPlugin(): Plugin {
           return;
         }
 
-        // 6. Endpoint Seats Occupancy
+        // 7. Endpoint Admin Audit Logs
+        if (req.method === 'GET' && url === '/api/admin/logs') {
+          try {
+            const logs = lobbyStore.getAuditLogs();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, logs }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 8. Endpoint Leader Dashboard Overview
+        if (req.method === 'GET' && url?.startsWith('/api/leader/overview')) {
+          try {
+            const q = req.url?.split('?')[1] || '';
+            const params = new URLSearchParams(q);
+            const bracketId = params.get('bracketId') || 'LOBBY-01';
+            const lobby = lobbyStore.getLobbyById(bracketId);
+            const company = lobbyStore.getCompanies().find((c) => c.assignedBracketId === bracketId);
+            const seats = lobbyStore.getOccupiedSeats(bracketId);
+            const allUsers = lobbyStore.getUsers().filter((u) => u.bracketId === bracketId || u.bracketId === 'ALL');
+
+            res.setHeader('Content-Type', 'application/json');
+            res.end(
+              JSON.stringify({
+                success: true,
+                bracketId,
+                lobby,
+                company,
+                seats,
+                teamMembers: allUsers,
+                onlineCount: lobby?.onlineCount || 0,
+              })
+            );
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 9. Endpoint Key Validation for Room Entry
+        if (req.method === 'POST' && url === '/api/lobbies/validate-key') {
+          try {
+            const body = await parseJsonBody(req);
+            const result = lobbyStore.validateKeyForLobby(body.billingKey, body.lobbyId);
+            res.statusCode = result.valid ? 200 : 403;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ valid: false, message: err.message }));
+          }
+          return;
+        }
+
+        // 10. Endpoint Seats Occupancy
         if (req.method === 'GET' && url?.startsWith('/api/seats')) {
           try {
             const q = req.url?.split('?')[1] || '';

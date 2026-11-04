@@ -243,10 +243,11 @@ export class OfficeScene extends Phaser.Scene {
   // Direct active movement keys tracking (immune to canvas focus loss & caps lock)
   private activeMoveKeys: Set<string> = new Set<string>();
 
-  // 30-Minute Inactivity AFK Timer
+  // 15-Minute Mouse Inactivity AFK Timer (Prompt 2 #9)
   private lastUserActivityTime: number = Date.now();
   private isAfk: boolean = false;
-  private readonly AFK_TIMEOUT_MS: number = 30 * 60 * 1000; // 30 Menit
+  private readonly AFK_TIMEOUT_MS: number = 15 * 60 * 1000; // 15 Menit
+  private lastEmittedPos: { x: number; y: number } = { x: 0, y: 0 };
 
   // Meeting Room Max 7 Capacity Door Barrier
   private meetingDoorBarrier!: Phaser.GameObjects.Rectangle;
@@ -382,9 +383,11 @@ export class OfficeScene extends Phaser.Scene {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('neurosim_user_profile_updated', this.handleUserProfileUpdated);
+      window.addEventListener('mousemove', this.handleUserActivity);
+      window.addEventListener('mousedown', this.handleUserActivity);
     }
 
-    // Track user input for 30-minute AFK timeout
+    // Track user input for 15-minute AFK timeout
     this.input.on('pointermove', this.handleUserActivity, this);
     this.input.on('pointerdown', this.handleUserActivity, this);
     this.input.keyboard?.on('keydown', this.handleUserActivity, this);
@@ -535,6 +538,13 @@ export class OfficeScene extends Phaser.Scene {
     if (this.playerNametagContainer && this.playerNametagContainer.active) {
       this.playerNametagContainer.setPosition(this.player.x, this.player.y);
       this.playerNametagContainer.setDepth(this.player.y + 1000);
+    }
+
+    // Emit local player position for Minimap radar
+    if (this.player && (Math.abs(this.player.x - this.lastEmittedPos.x) > 1 || Math.abs(this.player.y - this.lastEmittedPos.y) > 1)) {
+      this.lastEmittedPos.x = this.player.x;
+      this.lastEmittedPos.y = this.player.y;
+      EventBus.emit('LOCAL_PLAYER_POSITION', { x: this.player.x, y: this.player.y });
     }
 
     // Meeting Room Capacity & Door Lock check
@@ -1811,9 +1821,9 @@ export class OfficeScene extends Phaser.Scene {
       this.playerCurrentStatus = 'work';
       multiplayerService.sendStatus('busy');
       multiplayerService.sendPresenceStatus('work');
-      EventBus.emit('neurosim_auto_oncam', true);
+      EventBus.emit('neurosim_status_changed', 'busy');
       this.updateLocalPlayerNametag('work');
-      this.playerNametagContainer?.setVisible(false);
+      this.playerNametagContainer?.setVisible(true);
     } else if (isMeetingChair) {
       this.playerCurrentStatus = 'meeting';
       multiplayerService.sendStatus('busy');
@@ -1879,6 +1889,7 @@ export class OfficeScene extends Phaser.Scene {
     this.playerCurrentStatus = 'online';
     multiplayerService.sendStatus('available');
     multiplayerService.sendPresenceStatus('online');
+    EventBus.emit('neurosim_status_changed', 'available');
     this.updateLocalPlayerNametag('online');
 
     // Exit strictly BEHIND the chair / into open walkway (prevents clipping through desks/tables!)
@@ -2704,7 +2715,16 @@ export class OfficeScene extends Phaser.Scene {
   public updateLocalPlayerNametag(status: string): void {
     this.playerCurrentStatus = status;
     const isAfkStatus = status === 'afk';
-    const label = isAfkStatus ? `[AFK] ${this.playerDisplayName}` : this.playerDisplayName;
+    const isWorkStatus = status === 'work' || status === 'busy';
+    const isMeetingStatus = status === 'meeting';
+    let label = this.playerDisplayName;
+    if (isAfkStatus) {
+      label = `[AFK] ${this.playerDisplayName}`;
+    } else if (isWorkStatus) {
+      label = `[Sedang Bekerja] ${this.playerDisplayName}`;
+    } else if (isMeetingStatus) {
+      label = `[Rapat] ${this.playerDisplayName}`;
+    }
     this.playerNameText.setText(label);
 
     const paddingX = 8;
@@ -2716,11 +2736,12 @@ export class OfficeScene extends Phaser.Scene {
 
     this.playerNameBg.clear();
     this.playerNameBg.fillStyle(0x0f172a, 0.9);
-    this.playerNameBg.lineStyle(1.5, isAfkStatus ? 0xf59e0b : 0x10b981, 0.9);
+    const strokeColor = isAfkStatus ? 0xf59e0b : isWorkStatus ? 0xe0b65d : 0x10b981;
+    this.playerNameBg.lineStyle(1.5, strokeColor, 0.9);
     this.playerNameBg.fillRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
     this.playerNameBg.strokeRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
 
-    this.drawStatusDot(this.playerStatusDot, -halfW + 8, pillY, isAfkStatus ? 'away' : 'online');
+    this.drawStatusDot(this.playerStatusDot, -halfW + 8, pillY, isAfkStatus ? 'away' : isWorkStatus ? 'busy' : 'online');
     this.playerNameText.setPosition(-halfW + 16, pillY);
   }
 
@@ -2849,7 +2870,7 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     this.showTopBanner(
-      'Status: AFK (Inaktif 30 Menit)',
+      'Status: AFK (Inaktif 15 Menit)',
       'Karakter Anda berjalan otomatis ke AFK Room. Gerakkan mouse atau tombol keyboard untuk kembali aktif.'
     );
 

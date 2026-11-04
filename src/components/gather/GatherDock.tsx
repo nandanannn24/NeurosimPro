@@ -79,7 +79,7 @@ export const GatherDock: React.FC<Props> = ({
       case 'available':
         return 'Tersedia';
       case 'busy':
-        return 'Fokus Kerja';
+        return 'Sedang Bekerja';
       case 'pantry':
         return 'Di Pantry';
       case 'afk':
@@ -171,7 +171,7 @@ export const GatherDock: React.FC<Props> = ({
                 className="w-full text-left px-2 py-1 rounded hover:bg-sand flex items-center gap-2"
               >
                 <span className="w-2 h-2 rounded-full bg-brick" />
-                <span>Fokus Kerja</span>
+                <span>Sedang Bekerja</span>
               </button>
               <button
                 type="button"
