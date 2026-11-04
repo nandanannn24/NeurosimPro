@@ -124,6 +124,7 @@ export const AdminComplexLoginModal: React.FC<Props> = ({
 
         // Save session locally
         try {
+          if (data.token) { localStorage.setItem('neurosim_auth_token', data.token); }
           localStorage.setItem('neurosim_current_user', JSON.stringify(data.user));
           localStorage.setItem('neurosim_admin_session_active', 'true');
         } catch (e) {

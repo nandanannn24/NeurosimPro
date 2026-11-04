@@ -7,6 +7,7 @@ import {
   Shirt,
   Play,
   ArrowRight,
+  ArrowLeft,
   LogOut,
   Sparkles,
   CheckCircle2,
@@ -178,6 +179,17 @@ export const DashboardView: React.FC<Props> = ({
       {/* Top Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-6 py-3.5 bg-cream border-b border-[#d1c7b5] sticky top-0 z-30 shadow-xs">
         <div className="flex items-center gap-3">
+          {onBackToLanding && (
+            <button
+              type="button"
+              onClick={onBackToLanding}
+              className="px-2.5 py-1.5 rounded-lg border border-[#d1c7b5] bg-cream hover:bg-sand text-xs font-semibold text-ink flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer mr-1"
+              title="Kembali ke Halaman Start / Pilihan Mode"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-ink-muted" />
+              <span className="hidden sm:inline">Pilihan Mode</span>
+            </button>
+          )}
           <div className="flex items-center gap-2.5 text-left">
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-cream border border-teal/30 flex items-center justify-center shadow-xs">
               <img src="/logo.webp" alt="Logo NeuroSim Pro" className="w-full h-full object-contain" />

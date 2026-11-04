@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDbPool } from '../../src/lib/db';
+import { signJwt } from '../../src/lib/jwt';
 
 export interface LoginRequestBody {
   username?: string;
@@ -181,24 +182,39 @@ export async function processLogin(body: LoginRequestBody): Promise<LoginRespons
             // history fetch optional
           }
 
+          const userData: UserSessionData = {
+            id: u.id,
+            username: u.username,
+            email: u.email || `${u.username}@neurosimpro.com`,
+            fullName: u.full_name,
+            role: u.role_name || 'Employee / Member',
+            roleSlug: (u.role_slug || 'employee') as any,
+            department: u.department || 'Product & Engineering',
+            title: u.title || 'Staff Pengembang',
+            avatar: u.avatar || '/assets/characters/resident/standing/south.png',
+            orgId: u.org_id || 1,
+            reduceMotion: Boolean(u.reduce_motion),
+            highContrast: Boolean(u.high_contrast),
+            textScale: u.text_scale || 'normal',
+          };
+
+          const token = signJwt({
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            fullName: userData.fullName,
+            role: userData.role,
+            roleSlug: userData.roleSlug,
+            department: userData.department,
+            title: userData.title,
+            orgId: userData.orgId,
+          });
+
           return {
             success: true,
             message: 'Autentikasi berhasil melalui database MySQL.',
-            user: {
-              id: u.id,
-              username: u.username,
-              email: u.email || `${u.username}@neurosimpro.com`,
-              fullName: u.full_name,
-              role: u.role_name || 'Employee / Member',
-              roleSlug: (u.role_slug || 'employee') as any,
-              department: u.department || 'Product & Engineering',
-              title: u.title || 'Staff Pengembang',
-              avatar: u.avatar || '/assets/characters/resident/standing/south.png',
-              orgId: u.org_id || 1,
-              reduceMotion: Boolean(u.reduce_motion),
-              highContrast: Boolean(u.high_contrast),
-              textScale: u.text_scale || 'normal',
-            },
+            token,
+            user: userData,
             history,
           };
         }
@@ -211,9 +227,22 @@ export async function processLogin(body: LoginRequestBody): Promise<LoginRespons
   // Fallback Enterprise Demo Accounts
   const demo = ENTERPRISE_DEMO_ACCOUNTS[identifier];
   if (demo && (password === demo.pass || password === 'admin123' || password === 'password123')) {
+    const token = signJwt({
+      id: demo.user.id,
+      username: demo.user.username,
+      email: demo.user.email,
+      fullName: demo.user.fullName,
+      role: demo.user.role,
+      roleSlug: demo.user.roleSlug,
+      department: demo.user.department,
+      title: demo.user.title,
+      orgId: demo.user.orgId,
+    });
+
     return {
       success: true,
       message: 'Login berhasil dengan sesi enterprise!',
+      token,
       user: demo.user,
       history: [
         {

@@ -64,7 +64,31 @@ const getUserDisplayName = (user: UserProfile | null, fallback = 'Pengguna'): st
 
 export const App: React.FC = () => {
   // Top-Level User Flow Navigation: landing -> dashboard -> room-lobby -> simulation | admin | leader | guest-lobby
-  const [currentView, setCurrentView] = useState<AppView>('dashboard');
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('/enter-office') || path.includes('/masuk-kantor')) return 'enter-office';
+      if (path.includes('/public-lobby') || path.includes('/lobi-publik')) return 'simulation';
+      if (path.includes('/x90x9admin')) return 'admin';
+      if (path.includes('/leader')) return 'leader';
+      if (path.includes('/guest-lobby') || path.includes('/tamu')) return 'guest-lobby';
+      if (path.includes('/simulation')) return 'simulation';
+      if (path.includes('/dashboard')) return 'dashboard';
+
+      // Cek apakah ada sesi login aktif & token JWT yang tersimpan
+      try {
+        const token = localStorage.getItem('neurosim_auth_token');
+        const user = localStorage.getItem('neurosim_current_user');
+        if (token && user) {
+          return 'dashboard';
+        }
+      } catch {
+        // Abaikan jika localStorage tidak dapat diakses
+      }
+    }
+    // Default mutlak halaman awal: START / LANDING PAGE (2 Mode)
+    return 'landing';
+  });
 
   const navigateTo = useCallback((view: AppView, path?: string) => {
     setCurrentView(view);
@@ -98,12 +122,64 @@ export const App: React.FC = () => {
           if (v === 'admin') setCurrentView('admin');
           else if (v === 'leader') setCurrentView('leader');
           else if (v === 'guest-lobby') setCurrentView('guest-lobby');
+          else if (v === 'dashboard') setCurrentView('dashboard');
+          else {
+            try {
+              const token = localStorage.getItem('neurosim_auth_token');
+              const user = localStorage.getItem('neurosim_current_user');
+              if (token && user) {
+                setCurrentView('dashboard');
+              } else {
+                setCurrentView('landing');
+              }
+            } catch {
+              setCurrentView('landing');
+            }
+          }
         }
       };
 
       syncFromLocation();
       window.addEventListener('popstate', syncFromLocation);
       return () => window.removeEventListener('popstate', syncFromLocation);
+    }
+  }, []);
+
+  // Verifikasi JWT token & refresh profil pengguna saat aplikasi pertama kali dibuka
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const token = localStorage.getItem('neurosim_auth_token');
+      if (!token) return;
+
+      fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ token }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.user) {
+            setCurrentUser(data.user);
+            localStorage.setItem('neurosim_current_user', JSON.stringify(data.user));
+          } else {
+            console.warn('[JWT Verify] Token kedaluwarsa atau tidak sah:', data.message);
+            localStorage.removeItem('neurosim_auth_token');
+            localStorage.removeItem('neurosim_current_user');
+            setCurrentUser(null);
+            if (window.location.pathname === '/' || window.location.pathname === '/dashboard') {
+              setCurrentView('landing');
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('[JWT Verify Error]:', err);
+        });
+    } catch {
+      // LocalStorage access exception
     }
   }, []);
 
@@ -809,24 +885,36 @@ export const App: React.FC = () => {
     [currentUser]
   );
 
-  const handleLoginSuccess = (user: UserProfile, history?: any[]) => {
+  const handleLoginSuccess = (user: UserProfile, history?: any[], token?: string) => {
     setCurrentUser(user);
     const hist = history || [];
     setUserHistory(hist);
-    localStorage.setItem('neurosim_current_user', JSON.stringify(user));
-    localStorage.setItem('neurosim_user_history', JSON.stringify(hist));
-    if (currentView === 'landing') {
-      setCurrentView('dashboard');
+    try {
+      localStorage.setItem('neurosim_current_user', JSON.stringify(user));
+      localStorage.setItem('neurosim_user_history', JSON.stringify(hist));
+      if (token) {
+        localStorage.setItem('neurosim_auth_token', token);
+      }
+    } catch (e) {
+      console.warn('Storage sync error:', e);
     }
+    // Setelah autentikasi berhasil, selalu arahkan pengguna ke Dashboard Workspace!
+    navigateTo('dashboard', '/dashboard');
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setUserHistory([]);
-    localStorage.removeItem('neurosim_current_user');
-    localStorage.removeItem('neurosim_user_history');
+    try {
+      localStorage.removeItem('neurosim_current_user');
+      localStorage.removeItem('neurosim_user_history');
+      localStorage.removeItem('neurosim_auth_token');
+      localStorage.removeItem('neurosim_company_access');
+    } catch (e) {
+      console.warn('Storage clear error:', e);
+    }
     setIsAuthOpen(false);
-    setCurrentView('landing');
+    navigateTo('landing', '/');
   };
 
   useEffect(() => {
@@ -926,15 +1014,32 @@ export const App: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* 1. SCREEN VIEW: UNIFIED DASHBOARD WORKSPACE PORTAL                   */}
+      {/* 1. SCREEN VIEW: START / LANDING PAGE (2 MODES: TAMU VS MASUK AKUN)  */}
       {/* ------------------------------------------------------------------- */}
-      {(currentView === 'dashboard' || currentView === 'landing') && (
+      {currentView === 'landing' && (
+        <LandingView
+          currentUser={currentUser}
+          characterConfig={characterConfig}
+          onEnterDashboard={() => navigateTo('dashboard', '/dashboard')}
+          onEnterSimulation={handleNavigatePublicLobby}
+          onOpenCustomizer={() => setIsCustomizerOpen(true)}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------- */}
+      {/* 2. SCREEN VIEW: UNIFIED DASHBOARD WORKSPACE PORTAL                   */}
+      {/* ------------------------------------------------------------------- */}
+      {currentView === 'dashboard' && (
         <DashboardView
           currentUser={currentUser}
           characterConfig={characterConfig}
           tasks={tasks}
           userHistory={userHistory}
           currentZoneId={currentZoneId}
+          onBackToLanding={() => navigateTo('landing', '/')}
           onSelectRoom={(room) => {
             setSelectedRoom(room);
             setCurrentView('room-lobby');
@@ -970,6 +1075,7 @@ export const App: React.FC = () => {
           onNavigatePublicLobby={handleNavigatePublicLobby}
           onNavigateEnterOffice={handleNavigateEnterOffice}
           onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
         />
       )}
 

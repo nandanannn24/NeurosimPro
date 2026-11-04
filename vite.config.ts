@@ -522,6 +522,95 @@ Ada yang ingin kamu ketahui lebih lanjut?`;
           return;
         }
 
+        // 4b. Endpoint Auth Verify JWT & Session
+        if (req.method === 'POST' && url === '/api/auth/verify') {
+          try {
+            const authHeader = req.headers['authorization'];
+            let token = '';
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+              token = authHeader.substring(7);
+            } else {
+              const body = await parseJsonBody(req);
+              token = body?.token || '';
+            }
+
+            const { verifyJwt } = await import('./src/lib/jwt');
+            const verifyResult = verifyJwt(token);
+            if (!verifyResult.valid || !verifyResult.payload) {
+              res.statusCode = 401;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: false, message: verifyResult.error || 'Token tidak valid' }));
+              return;
+            }
+
+            let freshUser = null;
+            try {
+              const { getDbPool } = await import('./src/lib/db');
+              const pool = getDbPool();
+              if (pool) {
+                const [rows] = await pool.query(
+                  `SELECT u.id, u.username, u.email, u.full_name, u.title, u.department, u.avatar,
+                          u.reduce_motion, u.high_contrast, u.text_scale, u.org_id,
+                          r.name as role_name, r.slug as role_slug
+                   FROM users u
+                   LEFT JOIN roles r ON u.role_id = r.id
+                   WHERE u.id = ? LIMIT 1`,
+                  [verifyResult.payload.id]
+                );
+                if (rows && rows.length > 0) {
+                  const u = rows[0];
+                  freshUser = {
+                    id: u.id,
+                    username: u.username,
+                    email: u.email || `${u.username}@neurosimpro.com`,
+                    fullName: u.full_name,
+                    role: u.role_name || 'Employee / Member',
+                    roleSlug: u.role_slug || 'employee',
+                    department: u.department || 'Product & Engineering',
+                    title: u.title || 'Staff Pengembang',
+                    avatar: u.avatar || '/assets/characters/resident/standing/south.png',
+                    orgId: u.org_id || 1,
+                    reduceMotion: Boolean(u.reduce_motion),
+                    highContrast: Boolean(u.high_contrast),
+                    textScale: u.text_scale || 'normal',
+                  };
+                }
+              }
+            } catch (e) {
+              // fallback
+            }
+
+            if (!freshUser) {
+              const p = verifyResult.payload;
+              freshUser = {
+                id: p.id,
+                username: p.username,
+                email: p.email || `${p.username}@neurosimpro.com`,
+                fullName: p.fullName || p.username,
+                role: p.role || 'Employee / Member',
+                roleSlug: p.roleSlug || 'employee',
+                department: p.department || 'Divisi Antarmuka & Frontend',
+                title: p.title || 'Staff Pengembang',
+                avatar: '/assets/characters/resident/standing/south.png',
+                orgId: p.orgId || 1,
+                reduceMotion: false,
+                highContrast: false,
+                textScale: 'normal',
+              };
+            }
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, user: freshUser, payload: verifyResult.payload }));
+          } catch (err) {
+            console.error('[Vite API] Error pada /api/auth/verify:', err);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: 'Server error saat verifikasi token' }));
+          }
+          return;
+        }
+
         // 4. Endpoint Auth Login (MySQL)
         if (req.method === 'POST' && url === '/api/auth/login') {
           try {

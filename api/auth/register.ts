@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDbPool } from '../../src/lib/db';
+import { signJwt } from '../../src/lib/jwt';
 import { UserSessionData } from './login';
 
 export interface RegisterRequestBody {
@@ -17,6 +18,7 @@ export interface RegisterResponse {
   success: boolean;
   message?: string;
   user?: UserSessionData;
+  token?: string;
 }
 
 export async function processRegister(body: RegisterRequestBody): Promise<RegisterResponse> {
@@ -62,24 +64,39 @@ export async function processRegister(body: RegisterRequestBody): Promise<Regist
 
       const newId = result.insertId;
 
+      const newUser: UserSessionData = {
+        id: newId,
+        username: cleanUser,
+        email,
+        fullName: fullName.trim(),
+        role,
+        roleSlug: 'employee',
+        department,
+        title,
+        avatar,
+        orgId: 1,
+        reduceMotion: false,
+        highContrast: false,
+        textScale: 'normal',
+      };
+
+      const token = signJwt({
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        fullName: newUser.fullName,
+        role: newUser.role,
+        roleSlug: newUser.roleSlug,
+        department: newUser.department,
+        title: newUser.title,
+        orgId: newUser.orgId,
+      });
+
       return {
         success: true,
         message: 'Registrasi akun NeuroSim Pro berhasil!',
-        user: {
-          id: newId,
-          username: cleanUser,
-          email,
-          fullName: fullName.trim(),
-          role,
-          roleSlug: 'employee',
-          department,
-          title,
-          avatar,
-          orgId: 1,
-          reduceMotion: false,
-          highContrast: false,
-          textScale: 'normal',
-        },
+        token,
+        user: newUser,
       };
     } catch (err: any) {
       console.warn('[Register MySQL Warning]:', err.message);
@@ -88,24 +105,39 @@ export async function processRegister(body: RegisterRequestBody): Promise<Regist
 
   // Fallback instant verified user for offline dev
   const fallbackId = Math.floor(1000 + Math.random() * 9000);
+  const fallbackUser: UserSessionData = {
+    id: fallbackId,
+    username: cleanUser,
+    email,
+    fullName: fullName.trim(),
+    role,
+    roleSlug: 'employee',
+    department,
+    title,
+    avatar,
+    orgId: 1,
+    reduceMotion: false,
+    highContrast: false,
+    textScale: 'normal',
+  };
+
+  const token = signJwt({
+    id: fallbackUser.id,
+    username: fallbackUser.username,
+    email: fallbackUser.email,
+    fullName: fallbackUser.fullName,
+    role: fallbackUser.role,
+    roleSlug: fallbackUser.roleSlug,
+    department: fallbackUser.department,
+    title: fallbackUser.title,
+    orgId: fallbackUser.orgId,
+  });
+
   return {
     success: true,
     message: 'ID Karyawan NeuroSim Pro berhasil diterbitkan!',
-    user: {
-      id: fallbackId,
-      username: cleanUser,
-      email,
-      fullName: fullName.trim(),
-      role,
-      roleSlug: 'employee',
-      department,
-      title,
-      avatar,
-      orgId: 1,
-      reduceMotion: false,
-      highContrast: false,
-      textScale: 'normal',
-    },
+    token,
+    user: fallbackUser,
   };
 }
 

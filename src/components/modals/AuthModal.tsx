@@ -17,7 +17,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile | null;
-  onLoginSuccess: (user: UserProfile, history?: any[]) => void;
+  onLoginSuccess: (user: UserProfile, history?: any[], token?: string) => void;
   onLogout: () => void;
   userHistory?: any[];
   userAvatar?: string;
@@ -189,10 +189,11 @@ export const AuthModal: React.FC<Props> = ({
       }
 
       if (data?.success && data?.user) {
+        if (data.token) { localStorage.setItem("neurosim_auth_token", data.token); }
         saveLocalAccount(u, p, data.user);
         setSuccessMessage('Berhasil masuk! Selamat datang kembali.');
         setTimeout(() => {
-          onLoginSuccess(data.user, data.history || []);
+          onLoginSuccess(data.user, data.history || [], data.token);
           onClose();
         }, 500);
         return;
@@ -282,11 +283,12 @@ export const AuthModal: React.FC<Props> = ({
       }
 
       const finalUser = (data?.success && data?.user) ? data.user : localUser;
+      if (data?.token) { localStorage.setItem("neurosim_auth_token", data.token); }
       saveLocalAccount(cleanUser, cleanPass, finalUser);
 
       setSuccessMessage('ID Karyawan NeuroSim Pro berhasil diterbitkan!');
       setTimeout(() => {
-        onLoginSuccess(finalUser, []);
+        onLoginSuccess(finalUser, [], data?.token);
         onClose();
       }, 500);
     } catch (err: any) {
