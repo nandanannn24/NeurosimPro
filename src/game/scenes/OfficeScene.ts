@@ -2677,28 +2677,31 @@ export class OfficeScene extends Phaser.Scene {
 
   public buildLocalPlayerNametag(): void {
     let displayName = this.playerDisplayName;
-    if (!displayName || displayName === 'Pengguna') {
+    const savedUserStr = typeof localStorage !== 'undefined' ? (localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user')) : null;
+    const isActualAdmin = savedUserStr && (savedUserStr.includes('nandzzz') || savedUserStr.includes('super_admin'));
+
+    if (savedUserStr) {
+      try {
+        const u = JSON.parse(savedUserStr);
+        displayName = u.fullName || u.username || displayName;
+      } catch {}
+    } else {
+      // Mode Tamu / Belum Login
       if (typeof localStorage !== 'undefined') {
         try {
-          const savedUser = localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user');
-          if (savedUser) {
-            const u = JSON.parse(savedUser);
-            displayName = u.username || u.fullName || displayName;
-          }
-          if (!displayName || displayName === 'Pengguna') {
-            const savedCfg = localStorage.getItem('neurosim_character_config');
-            if (savedCfg) {
-              const c = JSON.parse(savedCfg);
-              if (c?.name && typeof c.name === 'string' && c.name.trim() && !c.name.includes('Baginda')) {
-                displayName = c.name.trim();
-              }
+          const savedCfg = localStorage.getItem('neurosim_character_config');
+          if (savedCfg) {
+            const c = JSON.parse(savedCfg);
+            if (c?.name && typeof c.name === 'string' && c.name.trim() && !c.name.toLowerCase().includes('admin') && !c.name.includes('Baginda')) {
+              displayName = c.name.trim();
             }
           }
         } catch {}
       }
     }
-    if (!displayName || !displayName.trim()) {
-      displayName = 'Pengguna';
+
+    if (!isActualAdmin && (displayName.toLowerCase().includes('administrator') || displayName.toLowerCase().includes('admin') || displayName === 'Pengguna' || !displayName.trim())) {
+      displayName = 'Tamu NeuroSim';
     }
     this.playerDisplayName = displayName;
 
@@ -3167,7 +3170,13 @@ export class OfficeScene extends Phaser.Scene {
     if (!this.player) return;
     const config = payload?.config || payload;
     if (config?.name && typeof config.name === 'string' && config.name.trim()) {
-      this.setLocalPlayerName(config.name.trim());
+      const savedUserStr = typeof localStorage !== 'undefined' ? (localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user')) : null;
+      const isActualAdmin = savedUserStr && (savedUserStr.includes('nandzzz') || savedUserStr.includes('super_admin'));
+      let candidate = config.name.trim();
+      if (!isActualAdmin && (candidate.toLowerCase().includes('administrator') || candidate.toLowerCase().includes('admin'))) {
+        candidate = 'Tamu NeuroSim';
+      }
+      this.setLocalPlayerName(candidate);
     }
 
     const isCustom = config?.archetype === 'custom';

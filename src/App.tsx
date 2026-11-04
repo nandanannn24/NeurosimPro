@@ -53,7 +53,7 @@ export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation' | 'a
 // Obrolan kantor dimulai dalam kondisi kosong bersih (dinamis)
 const getInitialChatMessages = (): OfficeChatMessage[] => [];
 
-const getUserDisplayName = (user: UserProfile | null, fallback = 'Pengguna'): string => {
+const getUserDisplayName = (user: UserProfile | null, fallback = 'Tamu NeuroSim'): string => {
   if (!user) return fallback;
   if (user.fullName && typeof user.fullName === 'string' && user.fullName.trim().length > 0) {
     const first = user.fullName.trim().split(' ')[0];
@@ -194,6 +194,50 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // User Account & Session (MySQL Synced)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('neurosim_current_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.fullName === 'string' && parsed.fullName.includes('Baginda')) {
+          parsed.fullName = 'Pengguna NeuroSim';
+          parsed.username = 'pengguna';
+          localStorage.setItem('neurosim_current_user', JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Character Customizer State (Universal LPC Format)
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [characterConfig, setCharacterConfig] = useState<CharacterCustomization>(() => {
+    try {
+      const saved = localStorage.getItem('neurosim_character_config');
+      const token = localStorage.getItem('neurosim_auth_token');
+      const userStr = localStorage.getItem('neurosim_current_user');
+      const isActualAdmin = token && userStr && (userStr.includes('nandzzz') || userStr.includes('super_admin'));
+
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.name === 'string') {
+          if (!isActualAdmin && (parsed.name.toLowerCase().includes('admin') || parsed.name.toLowerCase().includes('administrator') || parsed.name.includes('Baginda') || !parsed.name.trim())) {
+            parsed.name = 'Tamu NeuroSim';
+            localStorage.setItem('neurosim_character_config', JSON.stringify(parsed));
+          }
+        }
+        return parsed;
+      }
+      return { ...DEFAULT_CHARACTER, name: 'Tamu NeuroSim' };
+    } catch {
+      return { ...DEFAULT_CHARACTER, name: 'Tamu NeuroSim' };
+    }
+  });
+
   const [selectedRoom, setSelectedRoom] = useState<DashboardRoom>(OFFICE_ROOMS[0]);
   const [mode, setMode] = useState<'2d' | 'list'>('2d');
   const [isTodoListOpen, setIsTodoListOpen] = useState(false);
@@ -213,14 +257,25 @@ export const App: React.FC = () => {
   const handleNavigatePublicLobby = useCallback(() => {
     setCurrentLobbyId('LOBBY-PUBLIC');
     setCurrentLobbyName('Public Lobby - Ruang Eksplorasi Tamu');
+    if (!currentUser) {
+      setCharacterConfig((prev) => {
+        if (prev.name.toLowerCase().includes('admin')) {
+          const reset = { ...prev, name: 'Tamu NeuroSim' };
+          try { localStorage.setItem('neurosim_character_config', JSON.stringify(reset)); } catch {}
+          return reset;
+        }
+        return prev;
+      });
+    }
     setCurrentView('simulation');
     if (typeof window !== 'undefined') {
       window.history.pushState({}, '', '/public-lobby');
     }
     setTimeout(() => {
       EventBus.emit(GAME_EVENTS.TELEPORT_TO_ROOM, { x: 1375, y: 1260 });
+      EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', currentUser ? getUserDisplayName(currentUser) : 'Tamu NeuroSim');
     }, 150);
-  }, []);
+  }, [currentUser]);
 
   const handleNavigateEnterOffice = useCallback(() => {
     setCurrentView('enter-office');
@@ -278,24 +333,7 @@ export const App: React.FC = () => {
     return DEFAULT_CURRENT_ROOM;
   });
 
-  // User Account & Session (MySQL Synced)
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('neurosim_current_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.fullName === 'string' && parsed.fullName.includes('Baginda')) {
-          parsed.fullName = 'Pengguna NeuroSim';
-          parsed.username = 'pengguna';
-          localStorage.setItem('neurosim_current_user', JSON.stringify(parsed));
-        }
-        return parsed;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
+
   const [userHistory, setUserHistory] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('neurosim_user_history');
@@ -445,24 +483,7 @@ export const App: React.FC = () => {
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [onlineRemotePlayers, setOnlineRemotePlayers] = useState<PlayerPresence[]>([]);
 
-  // Character Customizer State (Universal LPC Format)
-  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
-  const [characterConfig, setCharacterConfig] = useState<CharacterCustomization>(() => {
-    try {
-      const saved = localStorage.getItem('neurosim_character_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.name === 'string' && (parsed.name.includes('Baginda') || !parsed.name.trim())) {
-          parsed.name = 'Karyawan NeuroSim';
-          localStorage.setItem('neurosim_character_config', JSON.stringify(parsed));
-        }
-        return parsed;
-      }
-      return DEFAULT_CHARACTER;
-    } catch {
-      return DEFAULT_CHARACTER;
-    }
-  });
+
 
   const dynamicParticipants: Participant[] = React.useMemo(() => {
     const localPart: Participant = {
@@ -558,12 +579,20 @@ export const App: React.FC = () => {
   }, [currentUser]);
 
   const handleSceneReady = React.useCallback(() => {
-    const activeName = currentUser?.username || currentUser?.fullName || getUserDisplayName(currentUser);
+    const isGuest = !currentUser || currentLobbyId === 'LOBBY-PUBLIC';
+    let activeName = isGuest
+      ? (characterConfig.name && !characterConfig.name.toLowerCase().includes('admin') ? characterConfig.name : 'Tamu NeuroSim')
+      : (currentUser?.fullName || currentUser?.username || getUserDisplayName(currentUser));
+
     EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', activeName);
     if (characterConfig) {
-      EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, characterConfig);
+      const cleanConfig = {
+        ...characterConfig,
+        name: activeName,
+      };
+      EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, cleanConfig);
     }
-  }, [currentUser, characterConfig]);
+  }, [currentUser, currentLobbyId, characterConfig]);
 
   // Auto On-Cam & Formal Meeting Event Listeners from Game Engine
   useEffect(() => {
@@ -702,17 +731,25 @@ export const App: React.FC = () => {
   // Gabung ke room multiplayer online saat berada di tampilan simulasi
   useEffect(() => {
     if (currentView === 'simulation') {
-      const activeUsername = currentUser?.username || 'Pengunjung';
+      const isGuest = !currentUser || currentLobbyId === 'LOBBY-PUBLIC';
+      const activeUsername = isGuest
+        ? (characterConfig.name && !characterConfig.name.toLowerCase().includes('admin') ? characterConfig.name : 'Tamu NeuroSim')
+        : (currentUser?.username || 'Pengguna');
+      const activeFullName = isGuest ? activeUsername : (currentUser?.fullName || activeUsername);
+
       multiplayerService.joinRoom({
         roomId: currentLobbyId,
         user: {
           id: currentUser?.id,
           username: activeUsername,
-          fullName: activeUsername,
-          role: currentUser?.role || 'Staff Tim',
+          fullName: activeFullName,
+          role: isGuest ? 'Tamu (Guest)' : (currentUser?.role || 'Staff Tim'),
           avatar: currentUser?.avatar || `/assets/characters/${characterConfig.archetype || 'resident'}/standing/south.png`,
         },
-        characterConfig,
+        characterConfig: {
+          ...characterConfig,
+          name: activeUsername,
+        },
         spawnCoords: { x: 1375, y: 1260 },
       });
     } else {
@@ -910,6 +947,11 @@ export const App: React.FC = () => {
       localStorage.removeItem('neurosim_user_history');
       localStorage.removeItem('neurosim_auth_token');
       localStorage.removeItem('neurosim_company_access');
+      setCharacterConfig((prev) => {
+        const reset = { ...prev, name: 'Tamu NeuroSim' };
+        localStorage.setItem('neurosim_character_config', JSON.stringify(reset));
+        return reset;
+      });
     } catch (e) {
       console.warn('Storage clear error:', e);
     }
@@ -1403,6 +1445,7 @@ export const App: React.FC = () => {
       <NeuroAssistantModal
         isOpen={isAiGuideOpen}
         onClose={() => setIsAiGuideOpen(false)}
+        onOpen={() => setIsAiGuideOpen(true)}
         currentRoomName={currentLobbyName}
         isGuest={currentLobbyId === 'LOBBY-PUBLIC'}
       />
