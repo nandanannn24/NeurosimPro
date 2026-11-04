@@ -21,6 +21,7 @@ interface Props {
   onLogout: () => void;
   userHistory?: any[];
   userAvatar?: string;
+  restrictionNotice?: string | null;
 }
 
 const AVATAR_OPTIONS = [
@@ -148,6 +149,7 @@ export const AuthModal: React.FC<Props> = ({
   onLogout,
   userHistory = [],
   userAvatar,
+  restrictionNotice,
 }) => {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [isLoading, setIsLoading] = useState(false);
@@ -337,6 +339,19 @@ export const AuthModal: React.FC<Props> = ({
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-4">
+          {/* Restriction Notice for Guests */}
+          {restrictionNotice && (
+            <div className="p-3.5 rounded-xl bg-amber-500/15 border-2 border-amber-500/50 text-amber-900 text-xs flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 shadow-xs">
+              <span className="text-base leading-none shrink-0 mt-0.5">🔒</span>
+              <div>
+                <strong className="block font-bold text-amber-950 text-xs">Akses Terbatas untuk Tamu</strong>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-900">
+                  {restrictionNotice} Silakan masuk ke akun atau daftarkan ID Anda untuk mengakses fitur kantor perusahaan secara penuh.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Feedback Messages */}
           {errorMessage && (
             <div className="p-2.5 rounded-lg bg-brick/10 border border-brick/30 text-brick text-xs flex items-center gap-2">

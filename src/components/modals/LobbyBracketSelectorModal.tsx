@@ -95,10 +95,10 @@ export const LobbyBracketSelectorModal: React.FC<Props> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white tracking-wide">
-                Pilih Server Bracket Online (Maksimal 5 Server)
+                Pilih Ruang Virtual Office (3 Dedicated Rooms)
               </h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                Setiap bracket room berkapasitas 20 orang dengan workstation personal dan billing session terisolasi.
+                1 Lobby Global untuk tamu publik, serta 2 Ruang Kantor Privat untuk perusahaan mitra terdaftar.
               </p>
             </div>
           </div>

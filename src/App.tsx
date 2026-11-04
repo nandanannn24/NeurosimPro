@@ -294,6 +294,12 @@ export const App: React.FC = () => {
   // 5 Online Server Brackets & Enterprise Billing Session State
   const [isAdminBillingOpen, setIsAdminBillingOpen] = useState(false);
   const [isLobbySelectorOpen, setIsLobbySelectorOpen] = useState(false);
+  const [authRestrictionNotice, setAuthRestrictionNotice] = useState<string | null>(null);
+
+  const handleRequireAuth = useCallback((notice: string) => {
+    setAuthRestrictionNotice(notice);
+    setIsAuthOpen(true);
+  }, []);
   const [currentLobbyId, setCurrentLobbyId] = useState('LOBBY-01');
   const [currentLobbyName, setCurrentLobbyName] = useState('Kantor Pusat NeuroSim');
 
@@ -1184,36 +1190,6 @@ export const App: React.FC = () => {
         <main className="flex-1 w-full min-h-0 relative overflow-hidden bg-[#0f1117]">
           {mode === '2d' ? (
             <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
-              {/* Floating Public Lobby Guest Explorer Banner */}
-              {currentView === 'simulation' && currentLobbyId === 'LOBBY-PUBLIC' && (
-                <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[92vw] bg-[#0f172a]/95 border-2 border-teal-500/50 rounded-2xl px-4 py-2.5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5 backdrop-blur-md animate-in slide-in-from-top-4">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping shrink-0" />
-                    <p className="text-xs text-slate-200">
-                      <strong>Public Lobby</strong> • Mode Eksplorasi Tamu. Siap masuk kantor tim Anda?
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setIsAiGuideOpen(true)}
-                      className="px-2.5 py-1 text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-teal-300 rounded-lg border border-teal-500/30 flex items-center gap-1 transition-all"
-                    >
-                      <Bot className="w-3.5 h-3.5 text-teal-400" />
-                      <span>Tanya AI</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNavigateEnterOffice}
-                      className="px-3 py-1 text-[11px] font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-lg flex items-center gap-1 shadow-md transition-all"
-                    >
-                      <span>Enter Office</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
               {currentView === 'simulation' && (
                 <PhaserGame onSceneReady={handleSceneReady} />

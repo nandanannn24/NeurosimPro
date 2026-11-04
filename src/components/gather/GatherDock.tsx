@@ -23,6 +23,9 @@ interface Props {
   onOpenCustomizer: () => void;
   onOpenMeeting?: () => void;
   onOpenAiGuide?: () => void;
+  isGuest?: boolean;
+  isLobbyGlobal?: boolean;
+  onRequireAuth?: (feature: string) => void;
 }
 
 const REACTIONS = ['✋', '👍', '👏', '❤️', '💡', '☕', '🔥'];
@@ -47,10 +50,27 @@ export const GatherDock: React.FC<Props> = ({
   onOpenCustomizer,
   onOpenMeeting,
   onOpenAiGuide,
+  isGuest = false,
+  isLobbyGlobal = false,
+  onRequireAuth,
 }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const dockRef = useRef<HTMLDivElement>(null);
+  const [lobbyNotice, setLobbyNotice] = useState<string | null>(null);
+
+  const handleMediaAction = (actionName: string, executeAction: () => void) => {
+    if (isGuest) {
+      onRequireAuth?.(`Fitur ${actionName} memerlukan akun karyawan atau kode akses kantor perusahaan.`);
+      return;
+    }
+    if (isLobbyGlobal) {
+      setLobbyNotice(`Fitur ${actionName} dinonaktifkan di Lobby Global. Masuk ke Kantor Perusahaan untuk audio & video.`);
+      setTimeout(() => setLobbyNotice(null), 3500);
+      return;
+    }
+    executeAction();
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -91,6 +111,13 @@ export const GatherDock: React.FC<Props> = ({
 
   return (
     <div ref={dockRef} className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 max-w-[95vw]">
+      {/* Toast Notice for Disabled Features in Global Lobby */}
+      {lobbyNotice && (
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-[#0f172a]/95 text-amber-300 border border-amber-500/50 text-[11px] font-medium px-3.5 py-1.5 rounded-xl shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-bottom-2 z-50 flex items-center gap-1.5 backdrop-blur-md">
+          <span>⚠️</span>
+          <span>{lobbyNotice}</span>
+        </div>
+      )}
       {/* Reactions Popup */}
       {showReactions && (
         <div className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-cream border-2 border-teal rounded-lg shadow-lg p-1.5 flex items-center gap-1.5 animate-in fade-in zoom-in-95">
@@ -219,7 +246,7 @@ export const GatherDock: React.FC<Props> = ({
         {onOpenMeeting && (
           <button
             type="button"
-            onClick={onOpenMeeting}
+            onClick={() => handleMediaAction('Konferensi & Rapat', () => onOpenMeeting?.())}
             aria-label="Buka Video Conference & Breakout Room"
             title="Video Conference & Breakout Room"
             className="px-2 sm:px-2.5 py-1.5 rounded border border-teal bg-teal/15 hover:bg-teal text-teal hover:text-soft transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
@@ -232,7 +259,7 @@ export const GatherDock: React.FC<Props> = ({
         {/* Media Toggles */}
         <button
           type="button"
-          onClick={onToggleMic}
+          onClick={() => handleMediaAction('Mikrofon', onToggleMic)}
           aria-label={isMicOn ? 'Matikan Mikrofon' : 'Nyalakan Mikrofon'}
           title={isMicOn ? 'Mikrofon Aktif' : 'Mikrofon Mati'}
           className={`p-2 rounded border transition-colors ${
@@ -246,7 +273,7 @@ export const GatherDock: React.FC<Props> = ({
 
         <button
           type="button"
-          onClick={onToggleCam}
+          onClick={() => handleMediaAction('Kamera', onToggleCam)}
           aria-label={isCamOn ? 'Matikan Kamera' : 'Nyalakan Kamera'}
           title={isCamOn ? 'Kamera Aktif' : 'Kamera Mati'}
           className={`p-2 rounded border transition-colors ${
@@ -260,7 +287,7 @@ export const GatherDock: React.FC<Props> = ({
 
         <button
           type="button"
-          onClick={onToggleScreenShare}
+          onClick={() => handleMediaAction('Berbagi Layar', onToggleScreenShare)}
           aria-label={isScreenSharing ? 'Hentikan Berbagi Layar' : 'Berbagi Layar'}
           title={isScreenSharing ? 'Sedang Berbagi Layar' : 'Berbagi Layar'}
           className={`p-2 rounded border transition-colors hidden sm:flex ${
@@ -298,7 +325,13 @@ export const GatherDock: React.FC<Props> = ({
         {onOpenAiGuide && (
           <button
             type="button"
-            onClick={onOpenAiGuide}
+            onClick={() => {
+              if (isGuest) {
+                onRequireAuth?.('NEURO AI Assistant hanya dapat digunakan oleh member terdaftar atau staf kantor perusahaan.');
+                return;
+              }
+              onOpenAiGuide?.();
+            }}
             aria-label="Tanya NEURO AI Assistant"
             title="NEURO AI Assistant (Panduan Interaktif)"
             className="p-2 rounded border bg-soft border-teal/40 text-teal hover:bg-teal/15 hover:border-teal transition-all flex items-center justify-center cursor-pointer shadow-2xs group"

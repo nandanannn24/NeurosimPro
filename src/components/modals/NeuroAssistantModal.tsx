@@ -30,6 +30,7 @@ interface Props {
   onOpen?: () => void;
   currentRoomName?: string;
   isGuest?: boolean;
+  onRequireAuth?: (feature: string) => void;
 }
 
 export const NeuroAssistantModal: React.FC<Props> = ({
@@ -38,6 +39,7 @@ export const NeuroAssistantModal: React.FC<Props> = ({
   onOpen,
   currentRoomName = 'Kantor Virtual',
   isGuest = false,
+  onRequireAuth,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -139,6 +141,10 @@ export const NeuroAssistantModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => {
+              if (isGuest) {
+                onRequireAuth?.('NEURO AI Assistant hanya dapat digunakan oleh member terdaftar atau staf kantor perusahaan.');
+                return;
+              }
               if (onOpen) onOpen();
             }}
             className="group relative flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-teal-500 via-teal-400 to-cyan-500 text-slate-950 font-bold text-xs sm:text-sm shadow-xl shadow-teal-500/30 hover:shadow-teal-500/50 hover:scale-105 active:scale-95 transition-all cursor-pointer border-2 border-teal-200"
