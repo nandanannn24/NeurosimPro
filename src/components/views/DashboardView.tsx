@@ -112,12 +112,13 @@ interface Props {
   userHistory: any[];
   currentZoneId?: string;
   onSelectRoom: (room: OfficeRoom) => void;
-  onEnterSimulationDirect: (room?: OfficeRoom) => void;
+  onEnterSimulationDirect: (room?: OfficeRoom, lobbyId?: string) => void;
   onOpenCustomizer: () => void;
   onOpenAuth: () => void;
   onLogout: () => void;
-  onBackToLanding: () => void;
+  onBackToLanding?: () => void;
   onStartVideoConference?: () => void;
+  onOpenAdminBilling?: () => void;
 }
 
 export const DashboardView: React.FC<Props> = ({
@@ -133,6 +134,7 @@ export const DashboardView: React.FC<Props> = ({
   onLogout,
   onBackToLanding,
   onStartVideoConference,
+  onOpenAdminBilling,
 }) => {
   const [previewDirection, setPreviewDirection] = useState<CharacterDirection>('south');
   const [lobbies, setLobbies] = useState<any[]>([]);
@@ -158,18 +160,13 @@ export const DashboardView: React.FC<Props> = ({
       {/* Top Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-6 py-3.5 bg-cream border-b border-[#d1c7b5] sticky top-0 z-30 shadow-xs">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBackToLanding}
-            className="flex items-center gap-2.5 text-left group cursor-pointer"
-            title="Kembali ke Beranda"
-          >
+          <div className="flex items-center gap-2.5 text-left">
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-cream border border-teal/30 flex items-center justify-center shadow-xs">
               <img src="/logo.webp" alt="Logo NeuroSim Pro" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm tracking-tight text-ink group-hover:text-teal transition-colors block leading-tight font-serif">
+                <span className="font-bold text-sm tracking-tight text-ink block leading-tight font-serif">
                   NeuroSim
                 </span>
                 <span className="text-[10px] font-black px-1 py-0.2 rounded bg-teal text-soft uppercase tracking-wider">
@@ -177,10 +174,10 @@ export const DashboardView: React.FC<Props> = ({
                 </span>
               </div>
               <span className="text-[10px] text-teal font-semibold block leading-tight">
-                Virtual Office Dashboard
+                Virtual Office Portal
               </span>
             </div>
-          </button>
+          </div>
         </div>
 
         {/* Center / Right Header Actions */}
@@ -196,14 +193,16 @@ export const DashboardView: React.FC<Props> = ({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={onOpenCustomizer}
-            className="px-3 py-1.5 rounded-lg border border-[#d1c7b5] bg-cream hover:bg-sand text-xs font-semibold text-ink transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-          >
-            <Shirt className="w-3.5 h-3.5 text-teal" />
-            <span>Kustomisasi Karakter</span>
-          </button>
+          {onOpenAdminBilling && (
+            <button
+              type="button"
+              onClick={onOpenAdminBilling}
+              className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+              <span className="hidden sm:inline">Admin Billing</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -461,23 +460,15 @@ export const DashboardView: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    {/* Room CTAs */}
-                    <div className="pt-2 border-t border-[#d1c7b5]/60 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onSelectRoom(room)}
-                        className="flex-1 py-2 px-3 rounded-lg bg-cream hover:bg-sand border border-[#b5aa94] text-xs font-bold text-ink transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Users className="w-3.5 h-3.5 text-teal" />
-                        <span>Masuk Lobby</span>
-                      </button>
+                    {/* Room CTA */}
+                    <div className="pt-2 border-t border-[#d1c7b5]/60 flex items-center">
                       <button
                         type="button"
                         onClick={() => onEnterSimulationDirect(room)}
-                        className="flex-1 py-2 px-3 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                        className="w-full py-2 px-3 rounded-lg bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>Masuk Kantor 2D</span>
+                        <span>Masuk ke Area Ini (2D)</span>
                       </button>
                     </div>
                   </div>
@@ -562,11 +553,11 @@ export const DashboardView: React.FC<Props> = ({
                     type="button"
                     onClick={() => {
                       localStorage.setItem('neurosim_current_lobby', lobby.id);
-                      onEnterSimulationDirect(OFFICE_ROOMS[0]);
+                      onEnterSimulationDirect(OFFICE_ROOMS[0], lobby.id);
                     }}
-                    className="w-full py-1.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-teal font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="w-full py-1.5 rounded-lg bg-teal hover:bg-teal-dark text-soft font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                   >
-                    <span>Masuk Kantor Virtual</span>
+                    <span>Masuk Server Bracket</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

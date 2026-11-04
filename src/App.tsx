@@ -53,10 +53,7 @@ const getUserDisplayName = (user: UserProfile | null, fallback = 'Pengguna'): st
 
 export const App: React.FC = () => {
   // Top-Level User Flow Navigation: landing -> dashboard -> room-lobby -> simulation
-  const [currentView, setCurrentView] = useState<AppView>(() => {
-    const savedUser = localStorage.getItem('neurosim_current_user');
-    return savedUser ? 'dashboard' : 'landing';
-  });
+  const [currentView, setCurrentView] = useState<AppView>('dashboard');
 
   const [selectedRoom, setSelectedRoom] = useState<DashboardRoom>(OFFICE_ROOMS[0]);
   const [mode, setMode] = useState<'2d' | 'list'>('2d');
@@ -677,23 +674,9 @@ export const App: React.FC = () => {
       } ${highContrast ? 'contrast-125' : ''}`}
     >
       {/* ------------------------------------------------------------------- */}
-      {/* 1. SCREEN VIEW: LANDING PAGE                                         */}
+      {/* 1. SCREEN VIEW: UNIFIED DASHBOARD WORKSPACE PORTAL                   */}
       {/* ------------------------------------------------------------------- */}
-      {currentView === 'landing' && (
-        <LandingView
-          currentUser={currentUser}
-          characterConfig={characterConfig}
-          onEnterDashboard={() => setCurrentView('dashboard')}
-          onEnterSimulation={() => setIsLobbySelectorOpen(true)}
-          onOpenCustomizer={() => setIsCustomizerOpen(true)}
-          onOpenAuth={() => setIsAuthOpen(true)}
-        />
-      )}
-
-      {/* ------------------------------------------------------------------- */}
-      {/* 2. SCREEN VIEW: DASHBOARD VIEW                                       */}
-      {/* ------------------------------------------------------------------- */}
-      {currentView === 'dashboard' && (
+      {(currentView === 'dashboard' || currentView === 'landing') && (
         <DashboardView
           currentUser={currentUser}
           characterConfig={characterConfig}
@@ -704,17 +687,31 @@ export const App: React.FC = () => {
             setSelectedRoom(room);
             setCurrentView('room-lobby');
           }}
-          onEnterSimulationDirect={(room) => {
+          onEnterSimulationDirect={(room, lobbyId) => {
             if (room) {
               setSelectedRoom(room);
               localStorage.setItem('neurosim_spawn_coords', JSON.stringify(room.spawnCoords));
             }
-            setIsLobbySelectorOpen(true);
+            if (lobbyId) {
+              setCurrentLobbyId(lobbyId);
+              const lobbyMap: Record<string, string> = {
+                'LOBBY-01': 'Kantor Pusat Utama',
+                'LOBBY-02': 'Divisi Engineering & AI',
+                'LOBBY-03': 'Divisi Product & Design',
+                'LOBBY-04': 'Tim Remote Global',
+                'LOBBY-05': 'Ruang Eksekutif & Klien',
+              };
+              if (lobbyMap[lobbyId]) setCurrentLobbyName(lobbyMap[lobbyId]);
+              setCurrentView('simulation');
+              EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+            } else {
+              setIsLobbySelectorOpen(true);
+            }
           }}
           onOpenCustomizer={() => setIsCustomizerOpen(true)}
           onOpenAuth={() => setIsAuthOpen(true)}
           onLogout={handleLogout}
-          onBackToLanding={() => setCurrentView('landing')}
+          onOpenAdminBilling={() => setIsAdminBillingOpen(true)}
         />
       )}
 
@@ -782,7 +779,7 @@ export const App: React.FC = () => {
                 <PhaserGame onSceneReady={handleSceneReady} />
               )}
 
-              {/* Right-Side Live Bracket Status Sidebar */}
+              {/* Right-Side Live Bracket Status Sidebar (Unified Participants Panel) */}
               {currentView === 'simulation' && (
                 <BracketLiveSidebar
                   currentLobbyId={currentLobbyId}
@@ -798,6 +795,8 @@ export const App: React.FC = () => {
                   }}
                   remotePlayers={onlineRemotePlayers}
                   onOpenLobbySelector={() => setIsLobbySelectorOpen(true)}
+                  isCollapsed={!isParticipantsOpen}
+                  onToggleCollapse={() => setIsParticipantsOpen((prev) => !prev)}
                 />
               )}
 
@@ -870,7 +869,7 @@ export const App: React.FC = () => {
                   });
                 }}
                 onSendReaction={handleSendReaction}
-                participantsCount={dynamicParticipants.length}
+                participantsCount={1 + onlineRemotePlayers.length}
                 unreadChatCount={unreadChatCount}
                 status={userStatus}
                 onChangeStatus={(newStatus) => {
@@ -885,17 +884,6 @@ export const App: React.FC = () => {
               />
 
               {/* Slide-in Drawers */}
-              <ParticipantsDrawer
-                isOpen={isParticipantsOpen}
-                onClose={() => setIsParticipantsOpen(false)}
-                participants={dynamicParticipants}
-                currentRoom={currentRoom}
-                onOpenRoomModal={() => {
-                  setIsParticipantsOpen(false);
-                  setIsRoomModalOpen(true);
-                }}
-              />
-
               <OfficeChatDrawer
                 isOpen={isOfficeChatOpen}
                 onClose={() => setIsOfficeChatOpen(false)}
@@ -992,19 +980,7 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* 10. Online Room Management Modal */}
-      <OnlineRoomModal
-        isOpen={isRoomModalOpen}
-        onClose={() => setIsRoomModalOpen(false)}
-        currentRoom={currentRoom}
-        availableRooms={availableRooms}
-        onJoinRoom={handleJoinRoom}
-        onCreateRoom={handleCreateRoom}
-        userName={getUserDisplayName(currentUser)}
-        userRole={currentUser?.role}
-        userAvatar={currentUser?.avatar}
-        participants={liveParticipants}
-      />
+
     </div>
   );
 };

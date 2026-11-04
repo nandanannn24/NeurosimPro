@@ -33,6 +33,8 @@ export interface BracketSidebarProps {
   };
   remotePlayers: PlayerPresence[];
   onOpenLobbySelector: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const BracketLiveSidebar: React.FC<BracketSidebarProps> = ({
@@ -41,8 +43,19 @@ export const BracketLiveSidebar: React.FC<BracketSidebarProps> = ({
   localUser,
   remotePlayers,
   onOpenLobbySelector,
+  isCollapsed: controlledCollapsed,
+  onToggleCollapse,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+
+  const handleToggle = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    } else {
+      setInternalCollapsed((prev) => !prev);
+    }
+  };
 
   // Helper to determine exact activity badge
   const getActivityBadge = (player: {
@@ -127,7 +140,7 @@ export const BracketLiveSidebar: React.FC<BracketSidebarProps> = ({
     <div className="fixed top-14 right-3 z-30 flex items-start select-none font-sans transition-all duration-300">
       {/* Toggle Tab Button */}
       <button
-        onClick={() => setIsCollapsed((prev) => !prev)}
+        onClick={handleToggle}
         className="mt-2 p-1.5 bg-[#141824]/90 hover:bg-[#1f2538] text-slate-300 border border-[#2a324b] rounded-l-lg shadow-lg backdrop-blur-md transition-colors"
         title={isCollapsed ? 'Tampilkan Rekan Bracket' : 'Ciutkan Rekan Bracket'}
       >

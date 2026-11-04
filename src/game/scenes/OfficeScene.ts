@@ -290,6 +290,7 @@ export class OfficeScene extends Phaser.Scene {
     this.seats = [];
     this.isSitting = false;
     this.currentSeat = null;
+    this.playerNametagContainer?.setVisible(true);
     // 1. Office Ground Texture (WebP 2752×1536)
     this.add.image(0, 0, 'office-ground').setOrigin(0, 0).setDepth(0);
     this.physics.world.setBounds(0, 0, MAP_W, MAP_H);
@@ -813,7 +814,8 @@ export class OfficeScene extends Phaser.Scene {
       .container(pillX, pillY)
       .setScrollFactor(0)
       .setScale(1 / zoom)
-      .setDepth(9990);
+      .setDepth(9990)
+      .setVisible(false);
 
     this.locationPillBg = this.add
       .rectangle(0, 0, 200, 32, 0x141824, 0.9)
@@ -1516,17 +1518,17 @@ export class OfficeScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(TODO_POS.y + 4);
 
-    // 4. Pinned Task Notes on Board
+    // 4. Interactive Notice on Board (Dynamic sync with TodoList modal)
     this.add
       .text(
         TODO_POS.x,
-        TODO_POS.y + 13,
-        '• Ruang Rapat: Konferensi & Screen Share\n• Ruang AFK: Relaksasi & Auto-AFK\n• Workstation: 20 Meja Kerja Dedicated',
+        TODO_POS.y + 14,
+        'Tekan [E] untuk Buka & Kelola Agenda Kerja Tim',
         {
           fontFamily: 'system-ui, sans-serif',
-          fontSize: '11px',
-          color: '#e2e8f0',
-          lineSpacing: 4,
+          fontSize: '12px',
+          color: '#cbd5e1',
+          fontStyle: 'bold',
           align: 'center',
         }
       )
@@ -1542,19 +1544,19 @@ export class OfficeScene extends Phaser.Scene {
     // 6. Central Corridor Decorative Elements
     this.addDecorativeProp('rug', 1375, 1260); // Entrance Welcome Mat
 
-    // Prominent Welcome Plaque mounted above the entrance welcome mat
-    const welcomePlaqueBg = this.add.rectangle(1375, 1205, 270, 26, 0x141824, 0.95);
+    // Prominent Welcome Plaque mounted cleanly at the entrance threshold (No spawn collision)
+    const welcomePlaqueBg = this.add.rectangle(1375, 1375, 270, 26, 0x141824, 0.95);
     welcomePlaqueBg.setStrokeStyle(1.5, 0xe0b65d);
-    welcomePlaqueBg.setDepth(1205);
+    welcomePlaqueBg.setDepth(1375);
 
-    const welcomePlaqueText = this.add.text(1375, 1205, '★ WELCOME TO NEUROSIM PRO ★', {
+    const welcomePlaqueText = this.add.text(1375, 1375, '★ WELCOME TO NEUROSIM PRO ★', {
       fontFamily: 'monospace',
       fontSize: '11px',
       color: '#e0b65d',
       fontStyle: 'bold',
     });
     welcomePlaqueText.setOrigin(0.5);
-    welcomePlaqueText.setDepth(1206);
+    welcomePlaqueText.setDepth(1376);
     this.addSolidProp('plant-large', 1230, 240, 52, 52); // Above pantry door, flush to wall
     this.addSolidProp('plant-large', 1230, 580, 52, 52); // Between pantry & meeting door
     // Tanaman dekat pintu afk/meeting room dihapus sesuai permintaan (Image 4)
@@ -1776,6 +1778,7 @@ export class OfficeScene extends Phaser.Scene {
       multiplayerService.sendPresenceStatus('work');
       EventBus.emit('neurosim_auto_oncam', true);
       this.updateLocalPlayerNametag('work');
+      this.playerNametagContainer?.setVisible(false);
     }
 
     // If sitting on Meeting Room chair -> activate formal video conference meeting!
