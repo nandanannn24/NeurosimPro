@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
+  Crown,
+  Megaphone,
+  KeyRound,
   Server,
   Users,
   Building2,
@@ -28,7 +31,7 @@ import {
   Save,
 } from 'lucide-react';
 import { UserProfile } from '../modals/AuthModal';
-import { LobbyBracket, BillingSession, CompanyRecord, EnterpriseUserRecord } from '../../types/lobby';
+import { LobbyBracket, BillingSession, CompanyRecord, EnterpriseUserRecord, CompanyAccessCode } from '../../types/lobby';
 
 interface Props {
   currentUser: UserProfile | null;
@@ -43,7 +46,7 @@ export const AdminDashboardView: React.FC<Props> = ({
   onOpenAuth,
   onEnterRoom,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'companies' | 'billing' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'companies' | 'billing' | 'logs' | 'access-codes'>('overview');
   const [overview, setOverview] = useState<any>(null);
   const [lobbies, setLobbies] = useState<LobbyBracket[]>([]);
   const [companies, setCompanies] = useState<CompanyRecord[]>([]);
@@ -88,6 +91,16 @@ export const AdminDashboardView: React.FC<Props> = ({
   // Edit Company Form State
   const [editingCompany, setEditingCompany] = useState<CompanyRecord | null>(null);
 
+  // Role-Based Access Codes State
+  const [accessCodes, setAccessCodes] = useState<CompanyAccessCode[]>([]);
+  const [showAddCodeModal, setShowAddCodeModal] = useState(false);
+  const [newCodeData, setNewCodeData] = useState({
+    companyId: 'COMP-01',
+    role: 'staff' as 'boss' | 'humas' | 'staff',
+    customCode: '',
+    notes: '',
+  });
+
   const isAdmin = currentUser?.role?.toLowerCase().includes('admin') || (currentUser as any)?.roleSlug === 'super_admin';
 
   const loadData = async () => {
@@ -99,6 +112,7 @@ export const AdminDashboardView: React.FC<Props> = ({
         fetch('/api/admin/companies').then((r) => r.json()),
         fetch('/api/admin/billing').then((r) => r.json()),
         fetch('/api/admin/logs').then((r) => r.json()),
+        fetch('/api/access-codes').then((r) => r.json()),
       ]);
 
       if (ovRes.success) setOverview(ovRes.overview);
@@ -109,6 +123,8 @@ export const AdminDashboardView: React.FC<Props> = ({
         setLobbies(billRes.lobbies || []);
       }
       if (logsRes.success) setLogs(logsRes.logs || []);
+      const codesRes = await fetch('/api/access-codes').then((r) => r.json()).catch(() => ({}));
+      if (codesRes?.success) setAccessCodes(codesRes.codes || []);
     } catch (e: any) {
       console.warn('Failed to load admin data:', e);
     } finally {
@@ -192,6 +208,52 @@ export const AdminDashboardView: React.FC<Props> = ({
       }
     } catch {
       setStatusMessage({ type: 'error', text: 'Gagal mengubah status akun.' });
+    }
+  };
+
+
+  const handleGenerateAccessCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/access-codes/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: newCodeData.companyId,
+          role: newCodeData.role,
+          customCode: newCodeData.customCode || undefined,
+          notes: newCodeData.notes || undefined,
+          createdBy: currentUser?.fullName || 'Super Admin',
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.accessCode) {
+        setStatusMessage({ type: 'success', text: `Kode akses role baru berhasil diterbitkan: ${data.accessCode.code} [${data.accessCode.role}]` });
+        setShowAddCodeModal(false);
+        setNewCodeData({ companyId: 'COMP-01', role: 'staff', customCode: '', notes: '' });
+        loadData();
+      } else {
+        setStatusMessage({ type: 'error', text: data.message || 'Gagal membuat kode akses.' });
+      }
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Koneksi gagal saat menerbitkan kode akses.' });
+    }
+  };
+
+  const handleToggleAccessCode = async (codeId: string, currentActive: boolean) => {
+    try {
+      const res = await fetch('/api/access-codes/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codeId, isActive: !currentActive }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAccessCodes((prev) => prev.map((c) => (c.id === codeId ? { ...c, isActive: !currentActive } : c)));
+        setStatusMessage({ type: 'success', text: 'Status kode akses berhasil diperbarui.' });
+      }
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Gagal mengubah status kode akses.' });
     }
   };
 
@@ -480,6 +542,18 @@ export const AdminDashboardView: React.FC<Props> = ({
             <span>Perusahaan & Kontak Humas (PIC)</span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveTab('access-codes' as any)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === ('access-codes' as any)
+                ? 'bg-teal text-soft shadow-xs'
+                : 'bg-cream/60 hover:bg-cream text-ink border border-[#d1c7b5]'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Kode Akses Role (Boss/Humas/Staff)</span>
+          </button>
           <button
             type="button"
             onClick={() => setActiveTab('billing')}
@@ -901,7 +975,125 @@ export const AdminDashboardView: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 5: AUDIT LOGS SISTEM */}
+                {/* TAB 6: KODE AKSES ROLE (BOSS / HUMAS / STAFF) */}
+        {activeTab === 'access-codes' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-ink font-serif">Kode Akses Perusahaan Berdasarkan Role (Boss, Humas, Staff)</h3>
+                <p className="text-xs text-ink-muted">
+                  Akses resmi ruang kantor virtual privat. Setiap role (Boss, PIC Humas, Staff) memiliki kode unik yang terikat pada room dan billing session perusahaan.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddCodeModal(true)}
+                className="py-2 px-3.5 rounded-xl bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Terbitkan Kode Baru</span>
+              </button>
+            </div>
+
+            {/* Access Codes Table */}
+            <div className="bg-cream border-2 border-[#b5aa94] rounded-2xl overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-ink">
+                  <thead className="bg-sand/60 border-b border-[#d1c7b5] text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                    <tr>
+                      <th className="p-3.5">Kode Akses</th>
+                      <th className="p-3.5">Role / Jabatan</th>
+                      <th className="p-3.5">Perusahaan & Ruangan</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5">Pembuat / Keterangan</th>
+                      <th className="p-3.5 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#d1c7b5]/60">
+                    {accessCodes.map((code) => {
+                      const isBoss = code.role === 'boss';
+                      const isHumas = code.role === 'humas';
+                      return (
+                        <tr key={code.id} className="hover:bg-sand/30 transition-colors">
+                          <td className="p-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-teal bg-teal/10 px-2 py-0.5 rounded border border-teal/20 text-xs">
+                                {code.code}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(code.code)}
+                                className="p-1 rounded hover:bg-sand/80 text-ink-muted hover:text-ink cursor-pointer"
+                                title="Salin Kode"
+                              >
+                                {copiedKey === code.code ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-3.5">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10.5px] border ${
+                                isBoss
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                  : isHumas
+                                  ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                  : 'bg-teal/15 text-teal border-teal/30'
+                              }`}
+                            >
+                              {isBoss && <Crown className="w-3 h-3 text-amber-600" />}
+                              {isHumas && <Megaphone className="w-3 h-3 text-purple-600" />}
+                              {!isBoss && !isHumas && <Briefcase className="w-3 h-3 text-teal" />}
+                              <span>{code.roleName}</span>
+                            </span>
+                          </td>
+                          <td className="p-3.5">
+                            <span className="font-bold text-ink block">{code.companyName}</span>
+                            <span className="text-[10px] font-mono text-ink-muted">{code.bracketId} • {code.roomName}</span>
+                          </td>
+                          <td className="p-3.5">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                code.isActive
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {code.isActive ? 'AKTIF' : 'NONAKTIF'}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-ink-muted text-[11px]">
+                            <div>{code.notes || '-'}</div>
+                            <div className="text-[10px] text-ink-muted/70 font-mono">Dibuat oleh {code.createdBy}</div>
+                          </td>
+                          <td className="p-3.5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAccessCode(code.id, code.isActive)}
+                              className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                                code.isActive
+                                  ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                  : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                              }`}
+                            >
+                              {code.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+{/* TAB 5: AUDIT LOGS SISTEM */}
         {activeTab === 'logs' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -1283,6 +1475,120 @@ export const AdminDashboardView: React.FC<Props> = ({
                   className="px-4 py-1.5 rounded-lg bg-teal hover:bg-teal-dark text-soft font-bold cursor-pointer shadow-xs"
                 >
                   Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal: Terbitkan Kode Akses Role Baru */}
+      {showAddCodeModal && (
+        <div className="fixed inset-0 bg-ink/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="max-w-md w-full bg-cream border-2 border-teal rounded-2xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#d1c7b5] pb-2.5">
+              <h3 className="font-bold text-sm text-ink font-serif flex items-center gap-2">
+                <Key className="w-4 h-4 text-teal" />
+                <span>Terbitkan Kode Akses Role Baru</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddCodeModal(false)}
+                className="text-ink-muted hover:text-ink font-bold text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateAccessCode} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Pilih Perusahaan:</label>
+                <select
+                  value={newCodeData.companyId}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, companyId: e.target.value })}
+                  className="w-full px-3 py-1.5 rounded-lg bg-parchment border border-[#d1c7b5] text-ink font-medium"
+                >
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.assignedBracketId})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Role Hak Akses:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewCodeData({ ...newCodeData, role: 'boss' })}
+                    className={`py-2 rounded-lg font-bold text-center border cursor-pointer ${
+                      newCodeData.role === 'boss'
+                        ? 'bg-amber-100 border-amber-400 text-amber-900'
+                        : 'bg-sand/40 border-[#d1c7b5] text-ink'
+                    }`}
+                  >
+                    Boss
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewCodeData({ ...newCodeData, role: 'humas' })}
+                    className={`py-2 rounded-lg font-bold text-center border cursor-pointer ${
+                      newCodeData.role === 'humas'
+                        ? 'bg-purple-100 border-purple-400 text-purple-900'
+                        : 'bg-sand/40 border-[#d1c7b5] text-ink'
+                    }`}
+                  >
+                    Humas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewCodeData({ ...newCodeData, role: 'staff' })}
+                    className={`py-2 rounded-lg font-bold text-center border cursor-pointer ${
+                      newCodeData.role === 'staff'
+                        ? 'bg-teal/20 border-teal text-teal font-bold'
+                        : 'bg-sand/40 border-[#d1c7b5] text-ink'
+                    }`}
+                  >
+                    Staff
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Kustom Kode (Opsional):</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: IDN-BOSS-9999"
+                  value={newCodeData.customCode}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, customCode: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-1.5 rounded-lg bg-parchment border border-[#d1c7b5] text-ink font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Catatan / Keterangan:</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Akses Pimpinan Tim Alpha"
+                  value={newCodeData.notes || ''}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, notes: e.target.value })}
+                  className="w-full px-3 py-1.5 rounded-lg bg-parchment border border-[#d1c7b5] text-ink"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCodeModal(false)}
+                  className="px-3 py-1.5 rounded-lg border border-[#d1c7b5] text-ink hover:bg-sand cursor-pointer font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-lg bg-teal hover:bg-teal-dark text-soft font-bold cursor-pointer shadow-xs"
+                >
+                  Terbitkan Kode
                 </button>
               </div>
             </form>

@@ -24,6 +24,10 @@ import { RoomLobbyView } from './components/views/RoomLobbyView';
 import { AdminDashboardView } from './components/views/AdminDashboardView';
 import { LeaderDashboardView } from './components/views/LeaderDashboardView';
 import { GuestLobbyView } from './components/views/GuestLobbyView';
+import { EnterOfficeView } from './components/views/EnterOfficeView';
+import { NeuroAssistantModal } from './components/modals/NeuroAssistantModal';
+import { CompanyAccessCode, CompanyRecord } from './types/lobby';
+import { Bot, ArrowRight } from 'lucide-react';
 import { TopCameraBar } from './components/gather/TopCameraBar';
 import { MinimapWidget } from './components/gather/MinimapWidget';
 import { MobileVirtualControls } from './components/gather/MobileVirtualControls';
@@ -42,7 +46,7 @@ import { ScreenShareWidget } from './components/gather/ScreenShareWidget';
 import { multiplayerService } from './services/multiplayer.service';
 import { PlayerPresence, PlayerChatPacket } from './types/multiplayer';
 
-export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation' | 'admin' | 'leader' | 'guest-lobby';
+export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation' | 'admin' | 'leader' | 'guest-lobby' | 'enter-office';
 
 
 // Obrolan kantor dimulai dalam kondisi kosong bersih (dinamis)
@@ -73,7 +77,13 @@ export const App: React.FC = () => {
     if (typeof window !== 'undefined') {
       const syncFromLocation = () => {
         const path = window.location.pathname.toLowerCase();
-        if (path.includes('/x90x9admin')) {
+        if (path.includes('/enter-office') || path.includes('/masuk-kantor')) {
+          setCurrentView('enter-office');
+        } else if (path.includes('/public-lobby') || path.includes('/lobi-publik')) {
+          setCurrentView('simulation');
+          setCurrentLobbyId('LOBBY-PUBLIC');
+          setCurrentLobbyName('Public Lobby - Ruang Eksplorasi Tamu');
+        } else if (path.includes('/x90x9admin')) {
           setCurrentView('admin');
         } else if (path.includes('/leader')) {
           setCurrentView('leader');
@@ -112,6 +122,36 @@ export const App: React.FC = () => {
   const [isTodoListOpen, setIsTodoListOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [isAiGuideOpen, setIsAiGuideOpen] = useState(false);
+  const [companyAccess, setCompanyAccess] = useState<{ accessCode?: CompanyAccessCode; company?: CompanyRecord } | null>(() => {
+    try {
+      const saved = localStorage.getItem('neurosim_company_access');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleNavigatePublicLobby = useCallback(() => {
+    setCurrentLobbyId('LOBBY-PUBLIC');
+    setCurrentLobbyName('Public Lobby - Ruang Eksplorasi Tamu');
+    setCurrentView('simulation');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/public-lobby');
+    }
+    setTimeout(() => {
+      EventBus.emit(GAME_EVENTS.TELEPORT_TO_ROOM, { x: 1375, y: 1260 });
+    }, 150);
+  }, []);
+
+  const handleNavigateEnterOffice = useCallback(() => {
+    setCurrentView('enter-office');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/enter-office');
+    }
+  }, []);
+
+
 
   // Video Conference & Breakout Room State
   const [isMeetingLobbyOpen, setIsMeetingLobbyOpen] = useState(false);
@@ -186,6 +226,61 @@ export const App: React.FC = () => {
       return [];
     }
   });
+
+  const handleEnterCompanyOffice = useCallback(
+    (data: {
+      accessCode: CompanyAccessCode;
+      company: CompanyRecord;
+      lobby: LobbyBracket;
+    }) => {
+      if (!currentUser) {
+        setIsAuthOpen(true);
+        return;
+      }
+
+      setCompanyAccess({
+        accessCode: data.accessCode,
+        company: data.company,
+      });
+      try {
+        localStorage.setItem(
+          'neurosim_company_access',
+          JSON.stringify({
+            accessCode: data.accessCode,
+            company: data.company,
+          })
+        );
+      } catch (e) {
+        console.warn('Failed to persist company access:', e);
+      }
+
+      if (currentUser) {
+        const updatedUser: UserProfile = {
+          ...currentUser,
+          role: data.accessCode.role as any,
+        };
+        setCurrentUser(updatedUser);
+        try {
+          localStorage.setItem('neurosim_current_user', JSON.stringify(updatedUser));
+        } catch (e) {
+          console.warn('Failed to persist updated user:', e);
+        }
+      }
+
+      setCurrentLobbyId(data.lobby.id);
+      setCurrentLobbyName(data.lobby.name);
+      setCurrentView('simulation');
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', `/office/${data.lobby.id}`);
+      }
+
+      setTimeout(() => {
+        EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+        EventBus.emit(GAME_EVENTS.TELEPORT_TO_ROOM, { x: 1375, y: 1260 });
+      }, 150);
+    },
+    [currentUser]
+  );
 
   const [tasks, setTasks] = useState<OfficeTask[]>(() => {
     const saved = localStorage.getItem('neurosim_tasks');
@@ -783,6 +878,18 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* 3B. SCREEN VIEW: ENTER COMPANY OFFICE (ROLE-BASED UNIQUE CODE ACCESS) */}
+      {currentView === 'enter-office' && (
+        <EnterOfficeView
+          currentUser={currentUser}
+          onNavigateHome={() => navigateTo('dashboard', '/')}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onExplorePublicLobby={handleNavigatePublicLobby}
+          onEnterCompanyOffice={handleEnterCompanyOffice}
+        />
+      )}
+
       {/* ------------------------------------------------------------------- */}
       {/* 1. SCREEN VIEW: UNIFIED DASHBOARD WORKSPACE PORTAL                   */}
       {/* ------------------------------------------------------------------- */}
@@ -825,6 +932,9 @@ export const App: React.FC = () => {
           onNavigateAdmin={() => navigateTo('admin', '/x90x9admin')}
           onNavigateLeader={() => navigateTo('leader', '/leader')}
           onNavigateGuestLobby={() => navigateTo('guest-lobby', '/guest-lobby')}
+          onNavigatePublicLobby={handleNavigatePublicLobby}
+          onNavigateEnterOffice={handleNavigateEnterOffice}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
         />
       )}
 
@@ -883,12 +993,44 @@ export const App: React.FC = () => {
           onOpenAdminBilling={() => setIsAdminBillingOpen(true)}
           onNavigateAdmin={() => navigateTo('admin', '/x90x9admin')}
           onNavigateLeader={() => navigateTo('leader', '/leader')}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onNavigateEnterOffice={handleNavigateEnterOffice}
         />
 
         {/* Main Workspace Viewport */}
         <main className="flex-1 w-full min-h-0 relative overflow-hidden bg-[#0f1117]">
           {mode === '2d' ? (
             <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
+              {/* Floating Public Lobby Guest Explorer Banner */}
+              {currentView === 'simulation' && currentLobbyId === 'LOBBY-PUBLIC' && (
+                <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[92vw] bg-[#0f172a]/95 border-2 border-teal-500/50 rounded-2xl px-4 py-2.5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5 backdrop-blur-md animate-in slide-in-from-top-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping shrink-0" />
+                    <p className="text-xs text-slate-200">
+                      <strong>Public Lobby</strong> • Mode Eksplorasi Tamu. Siap masuk kantor tim Anda?
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsAiGuideOpen(true)}
+                      className="px-2.5 py-1 text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-teal-300 rounded-lg border border-teal-500/30 flex items-center gap-1 transition-all"
+                    >
+                      <Bot className="w-3.5 h-3.5 text-teal-400" />
+                      <span>Tanya AI</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNavigateEnterOffice}
+                      className="px-3 py-1 text-[11px] font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-lg flex items-center gap-1 shadow-md transition-all"
+                    >
+                      <span>Enter Office</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
               {currentView === 'simulation' && (
                 <PhaserGame onSceneReady={handleSceneReady} />
@@ -1034,6 +1176,7 @@ export const App: React.FC = () => {
                 onOpenProfile={() => setIsAuthOpen(true)}
                 onOpenCustomizer={() => setIsCustomizerOpen(true)}
                 onOpenMeeting={handleOpenVideoConference}
+                onOpenAiGuide={() => setIsAiGuideOpen(true)}
               />
 
               {/* Slide-in Drawers */}
@@ -1115,6 +1258,14 @@ export const App: React.FC = () => {
       />
 
       {/* Character / Player Customizer Modal (Universal LPC Format) */}
+      {/* NEURO AI Assistant Interactive Gameplay Guide Modal */}
+      <NeuroAssistantModal
+        isOpen={isAiGuideOpen}
+        onClose={() => setIsAiGuideOpen(false)}
+        currentRoomName={currentLobbyName}
+        isGuest={currentLobbyId === 'LOBBY-PUBLIC'}
+      />
+
       <CharacterCustomizerModal
         isOpen={isCustomizerOpen}
         onClose={() => setIsCustomizerOpen(false)}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, ClipboardList, LayoutDashboard, Server, ShieldCheck } from 'lucide-react';
+import { User, ClipboardList, LayoutDashboard, Server, ShieldCheck, Bot, Key } from 'lucide-react';
 import { A11yControls, TextScale } from '../ui/A11yControls';
 import { UserProfile } from '../modals/AuthModal';
 import { OfficeRoom } from '../../types/room';
@@ -28,6 +28,8 @@ interface Props {
   onOpenAdminBilling?: () => void;
   onNavigateAdmin?: () => void;
   onNavigateLeader?: () => void;
+  onOpenAiGuide?: () => void;
+  onNavigateEnterOffice?: () => void;
 }
 
 const getUserDisplayName = (user: UserProfile | null): string => {
@@ -62,6 +64,8 @@ export const Header: React.FC<Props> = ({
   onOpenAdminBilling,
   onNavigateAdmin,
   onNavigateLeader,
+  onOpenAiGuide,
+  onNavigateEnterOffice,
 }) => {
   const isAdmin = currentUser?.role?.toLowerCase().includes('admin') || (currentUser as any)?.roleSlug === 'super_admin';
   const isLeader = currentUser?.role?.toLowerCase().includes('leader') || currentUser?.role?.toLowerCase().includes('manager') || (currentUser as any)?.roleSlug === 'manager';

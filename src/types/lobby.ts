@@ -75,6 +75,26 @@ export interface SeatOccupancyRecord {
 
 export type AppUserRole = 'super_admin' | 'org_admin' | 'manager' | 'employee' | 'guest';
 
+export type CompanyRole = 'boss' | 'humas' | 'staff' | 'admin' | 'guest';
+
+export interface CompanyAccessCode {
+  id: string; // e.g. "CODE-01"
+  code: string; // e.g. "IDN-BOSS-8821"
+  companyId: string; // e.g. "COMP-01"
+  companyName: string; // e.g. "PT Inovasi Digital Nusantara"
+  bracketId: string; // e.g. "LOBBY-01"
+  roomName: string; // e.g. "Bracket 01 - Kantor Pusat Utama"
+  role: 'boss' | 'humas' | 'staff';
+  roleName: string; // "Pimpinan / Boss", "Humas / Corporate Affairs", "Staff Internal"
+  isActive: boolean;
+  usedCount: number;
+  maxUses?: number;
+  expiresAt: string;
+  createdAt: string;
+  createdBy: string;
+  notes?: string;
+}
+
 export interface EnterpriseUserRecord {
   id: number;
   username: string;

@@ -20,6 +20,8 @@ import {
   Server,
   Lock,
   Unlock,
+  Bot,
+  Key,
 } from 'lucide-react';
 import { UserProfile } from '../modals/AuthModal';
 import { CharacterCustomization, CharacterDirection } from '../../types/character';
@@ -122,6 +124,9 @@ interface Props {
   onNavigateAdmin?: () => void;
   onNavigateLeader?: () => void;
   onNavigateGuestLobby?: () => void;
+  onNavigateEnterOffice?: () => void;
+  onNavigatePublicLobby?: () => void;
+  onOpenAiGuide?: () => void;
 }
 
 export const DashboardView: React.FC<Props> = ({
@@ -141,6 +146,9 @@ export const DashboardView: React.FC<Props> = ({
   onNavigateAdmin,
   onNavigateLeader,
   onNavigateGuestLobby,
+  onNavigateEnterOffice,
+  onNavigatePublicLobby,
+  onOpenAiGuide,
 }) => {
   const isAdmin = currentUser?.role?.toLowerCase().includes('admin') || (currentUser as any)?.roleSlug === 'super_admin';
   const isLeader = currentUser?.role?.toLowerCase().includes('leader') || currentUser?.role?.toLowerCase().includes('manager') || (currentUser as any)?.roleSlug === 'manager';
@@ -225,6 +233,30 @@ export const DashboardView: React.FC<Props> = ({
             </button>
           )}
 
+          {onOpenAiGuide && (
+            <button
+              type="button"
+              onClick={onOpenAiGuide}
+              className="px-3 py-1.5 rounded-lg border border-teal/40 bg-teal/10 hover:bg-teal/20 text-xs font-bold text-teal transition-all hover:scale-105 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Buka NEURO AI Assistant (Panduan Interaktif)"
+            >
+              <Bot className="w-3.5 h-3.5 text-teal" />
+              <span className="hidden sm:inline">NEURO AI</span>
+            </button>
+          )}
+
+          {onNavigateEnterOffice && (
+            <button
+              type="button"
+              onClick={onNavigateEnterOffice}
+              className="px-3 py-1.5 rounded-lg border border-amber-600/40 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 transition-all hover:scale-105 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Masuk Kantor Perusahaan dengan Kode Akses"
+            >
+              <Key className="w-3.5 h-3.5 text-amber-700" />
+              <span className="hidden sm:inline">Enter Office</span>
+            </button>
+          )}
+
           {onNavigateGuestLobby && (
             <button
               type="button"
@@ -287,6 +319,85 @@ export const DashboardView: React.FC<Props> = ({
           )}
         </div>
       </header>
+
+      {/* ==================================================================== */}
+      {/* RESTRUCTURED MAIN FLOW: PUBLIC LOBBY -> ENTER OFFICE -> AI GUIDE      */}
+      {/* ==================================================================== */}
+      <section className="max-w-6xl w-full mx-auto px-4 sm:px-6 pt-5 pb-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* Card 1: Public Lobby (Eksplorasi Tamu) */}
+          <div className="bg-cream border-2 border-teal/40 rounded-2xl p-4 shadow-xs hover:border-teal transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-teal bg-teal/10 px-2 py-0.5 rounded border border-teal/20">
+                  Langkah 1: Eksplorasi
+                </span>
+                <Sparkles className="w-4 h-4 text-teal" />
+              </div>
+              <h3 className="font-bold text-sm text-ink font-serif">Public Lobby (Mode Tamu)</h3>
+              <p className="text-xs text-ink-muted mt-1 leading-relaxed">
+                Jelajahi kantor virtual, uji kontrol analog & gerak, ganti pakaian karakter, dan coba fasilitas tanpa perlu login.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onNavigatePublicLobby}
+              className="mt-3.5 w-full py-2 px-3 rounded-xl bg-teal hover:bg-teal-dark text-soft text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Jelajahi Public Lobby</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Card 2: Enter Private Office (Kode Akses) */}
+          <div className="bg-cream border-2 border-amber-600/40 rounded-2xl p-4 shadow-xs hover:border-amber-600 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-300">
+                  Langkah 2: Kantor Resmi
+                </span>
+                <Key className="w-4 h-4 text-amber-700" />
+              </div>
+              <h3 className="font-bold text-sm text-ink font-serif">Enter Company Office</h3>
+              <p className="text-xs text-ink-muted mt-1 leading-relaxed">
+                Masukkan Kode Akses Role (Kode Boss, Humas, atau Staff) untuk memasuki ruang kantor virtual privat perusahaanmu.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onNavigateEnterOffice}
+              className="mt-3.5 w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-soft text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Input Kode Akses Kantor</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Card 3: NEURO AI Assistant */}
+          <div className="bg-cream border-2 border-cyan-600/40 rounded-2xl p-4 shadow-xs hover:border-cyan-600 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-800 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-300">
+                  Panduan Interaktif
+                </span>
+                <Bot className="w-4 h-4 text-cyan-700" />
+              </div>
+              <h3 className="font-bold text-sm text-ink font-serif">NEURO AI Assistant</h3>
+              <p className="text-xs text-ink-muted mt-1 leading-relaxed">
+                Asisten cerdas Gemini AI siap memandu kontrol mobile, cara duduk, kustomisasi karakter, dan fasilitas kantor 24/7.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenAiGuide}
+              className="mt-3.5 w-full py-2 px-3 rounded-xl bg-cyan-800 hover:bg-cyan-700 text-soft text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Tanya Panduan AI</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Main Dashboard Workspace */}
       <main className="max-w-6xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">

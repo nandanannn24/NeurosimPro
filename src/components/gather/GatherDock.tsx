@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Video, VideoOff, ScreenShare, Users, MessageSquare, Smile, ChevronUp, Shirt } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, ScreenShare, Users, MessageSquare, Smile, ChevronUp, Shirt, Bot } from 'lucide-react';
 
 export type UserStatus = 'available' | 'busy' | 'pantry' | 'afk';
 
@@ -22,6 +22,7 @@ interface Props {
   onOpenProfile?: () => void;
   onOpenCustomizer: () => void;
   onOpenMeeting?: () => void;
+  onOpenAiGuide?: () => void;
 }
 
 const REACTIONS = ['✋', '👍', '👏', '❤️', '💡', '☕', '🔥'];
@@ -45,6 +46,7 @@ export const GatherDock: React.FC<Props> = ({
   onOpenProfile,
   onOpenCustomizer,
   onOpenMeeting,
+  onOpenAiGuide,
 }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
@@ -291,6 +293,19 @@ export const GatherDock: React.FC<Props> = ({
         >
           <Shirt className="w-4 h-4" />
         </button>
+
+        {/* NEURO AI Assistant Button */}
+        {onOpenAiGuide && (
+          <button
+            type="button"
+            onClick={onOpenAiGuide}
+            aria-label="Tanya NEURO AI Assistant"
+            title="NEURO AI Assistant (Panduan Interaktif)"
+            className="p-2 rounded border bg-soft border-teal/40 text-teal hover:bg-teal/15 hover:border-teal transition-all flex items-center justify-center cursor-pointer shadow-2xs group"
+          >
+            <Bot className="w-4 h-4 text-teal group-hover:scale-110 transition-transform" />
+          </button>
+        )}
 
         <div className="w-[1px] h-6 bg-muted/20 mx-0.5" />
 

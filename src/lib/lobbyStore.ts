@@ -7,10 +7,39 @@ import {
   EnterpriseUserRecord,
   HumasContact,
   AppUserRole,
+  CompanyAccessCode,
+  CompanyRole,
 } from '../types/lobby';
 
 // 5 Active Online Lobby Brackets (Exact Limit 5 Server Brackets as requested)
 let memoryLobbies: LobbyBracket[] = [
+  {
+    id: 'LOBBY-PUBLIC',
+    name: 'Public Lobby - Ruang Eksplorasi Tamu',
+    companyName: 'NeuroSim Pro Open Campus',
+    billingKey: 'BILL-PUBLIC-GUEST',
+    isActive: true,
+    isLocked: false,
+    maxCapacity: 50,
+    onlineCount: 2,
+    serverRegion: 'ID-JKT-OPEN',
+    features: {
+      videoConference: false,
+      screenShare: false,
+      breakoutRooms: false,
+      chatRealtime: true,
+    },
+    humasContact: {
+      name: 'NeuroSim Community Guide',
+      email: 'guide@neurosimpro.com',
+      phone: '+62 800-NEURO-SIM',
+      title: 'Public Concierge & Assistant',
+      notes: 'Lobby publik gratis untuk mencoba pergerakan dan kustomisasi karakter.',
+    },
+    leaderName: 'Public Tour Host',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: new Date().toISOString(),
+  },
   {
     id: 'LOBBY-01',
     name: 'Bracket 01 - Kantor Pusat Utama',
@@ -145,6 +174,246 @@ let memoryLobbies: LobbyBracket[] = [
     leaderName: 'Managing Partner',
     createdAt: '2026-03-15T08:00:00Z',
     updatedAt: new Date().toISOString(),
+  },
+];
+
+
+let memoryAccessCodes: CompanyAccessCode[] = [
+  // COMP-01: PT Inovasi Digital Nusantara (LOBBY-01)
+  {
+    id: 'CODE-01',
+    code: 'IDN-BOSS-8821',
+    companyId: 'COMP-01',
+    companyName: 'PT Inovasi Digital Nusantara',
+    bracketId: 'LOBBY-01',
+    roomName: 'Bracket 01 - Kantor Pusat Utama',
+    role: 'boss',
+    roleName: 'Boss / Pimpinan Eksekutif',
+    isActive: true,
+    usedCount: 3,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-01-15T08:00:00Z',
+    createdBy: 'Super Admin',
+    notes: 'Akses pimpinan divisi kantor pusat dengan wewenang monitoring /leader.',
+  },
+  {
+    id: 'CODE-02',
+    code: 'IDN-HUMAS-4412',
+    companyId: 'COMP-01',
+    companyName: 'PT Inovasi Digital Nusantara',
+    bracketId: 'LOBBY-01',
+    roomName: 'Bracket 01 - Kantor Pusat Utama',
+    role: 'humas',
+    roleName: 'Humas / Corporate Affairs PIC',
+    isActive: true,
+    usedCount: 2,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-01-15T08:00:00Z',
+    createdBy: 'Super Admin',
+    notes: 'PIC penghubung perusahaan resmi dengan platform NeuroSim Pro.',
+  },
+  {
+    id: 'CODE-03',
+    code: 'IDN-STAFF-1092',
+    companyId: 'COMP-01',
+    companyName: 'PT Inovasi Digital Nusantara',
+    bracketId: 'LOBBY-01',
+    roomName: 'Bracket 01 - Kantor Pusat Utama',
+    role: 'staff',
+    roleName: 'Staff Internal',
+    isActive: true,
+    usedCount: 5,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-01-15T08:00:00Z',
+    createdBy: 'Super Admin',
+    notes: 'Akses seluruh workstation meja kerja dan fasilitas rapat tim internal.',
+  },
+  // COMP-02: PT Nusantara Teknologi Mandiri (LOBBY-02)
+  {
+    id: 'CODE-04',
+    code: 'NTM-BOSS-7731',
+    companyId: 'COMP-02',
+    companyName: 'PT Nusantara Teknologi Mandiri',
+    bracketId: 'LOBBY-02',
+    roomName: 'Bracket 02 - Divisi Engineering & AI',
+    role: 'boss',
+    roleName: 'Boss / Lead AI Engineer',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-02-01T08:00:00Z',
+    createdBy: 'Super Admin',
+    notes: 'Akses pimpinan divisi engineering.',
+  },
+  {
+    id: 'CODE-05',
+    code: 'NTM-HUMAS-3321',
+    companyId: 'COMP-02',
+    companyName: 'PT Nusantara Teknologi Mandiri',
+    bracketId: 'LOBBY-02',
+    roomName: 'Bracket 02 - Divisi Engineering & AI',
+    role: 'humas',
+    roleName: 'Humas / Division PIC',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-02-01T08:00:00Z',
+    createdBy: 'Super Admin',
+    notes: 'PIC komunikasi teknis divisi AI.',
+  },
+  {
+    id: 'CODE-06',
+    code: 'NTM-STAFF-6612',
+    companyId: 'COMP-02',
+    companyName: 'PT Nusantara Teknologi Mandiri',
+    bracketId: 'LOBBY-02',
+    roomName: 'Bracket 02 - Divisi Engineering & AI',
+    role: 'staff',
+    roleName: 'Staff Engineering',
+    isActive: true,
+    usedCount: 4,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-02-01T08:00:00Z',
+    createdBy: 'Super Admin',
+    notes: 'Akses tim AI developer dan engineer.',
+  },
+  // COMP-03: PT Kreatif Media Digital (LOBBY-03)
+  {
+    id: 'CODE-07',
+    code: 'KMD-BOSS-9912',
+    companyId: 'COMP-03',
+    companyName: 'PT Kreatif Media Digital',
+    bracketId: 'LOBBY-03',
+    roomName: 'Bracket 03 - Divisi Product & Design',
+    role: 'boss',
+    roleName: 'Boss / Design Director',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-02-10T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  {
+    id: 'CODE-08',
+    code: 'KMD-HUMAS-2211',
+    companyId: 'COMP-03',
+    companyName: 'PT Kreatif Media Digital',
+    bracketId: 'LOBBY-03',
+    roomName: 'Bracket 03 - Divisi Product & Design',
+    role: 'humas',
+    roleName: 'Humas PIC Tim Kreatif',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-02-10T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  {
+    id: 'CODE-09',
+    code: 'KMD-STAFF-5544',
+    companyId: 'COMP-03',
+    companyName: 'PT Kreatif Media Digital',
+    bracketId: 'LOBBY-03',
+    roomName: 'Bracket 03 - Divisi Product & Design',
+    role: 'staff',
+    roleName: 'Staff Product & Design',
+    isActive: true,
+    usedCount: 2,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-02-10T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  // COMP-04: PT Solusi Awan Kolaborasi (LOBBY-04)
+  {
+    id: 'CODE-10',
+    code: 'SAK-BOSS-1102',
+    companyId: 'COMP-04',
+    companyName: 'PT Solusi Awan Kolaborasi',
+    bracketId: 'LOBBY-04',
+    roomName: 'Bracket 04 - Tim Remote Global',
+    role: 'boss',
+    roleName: 'Boss / Cloud Team Lead',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-03-01T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  {
+    id: 'CODE-11',
+    code: 'SAK-HUMAS-8841',
+    companyId: 'COMP-04',
+    companyName: 'PT Solusi Awan Kolaborasi',
+    bracketId: 'LOBBY-04',
+    roomName: 'Bracket 04 - Tim Remote Global',
+    role: 'humas',
+    roleName: 'Humas PIC Global',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-03-01T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  {
+    id: 'CODE-12',
+    code: 'SAK-STAFF-3390',
+    companyId: 'COMP-04',
+    companyName: 'PT Solusi Awan Kolaborasi',
+    bracketId: 'LOBBY-04',
+    roomName: 'Bracket 04 - Tim Remote Global',
+    role: 'staff',
+    roleName: 'Staff Remote Global',
+    isActive: true,
+    usedCount: 3,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-03-01T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  // COMP-05: PT Ventura Kapital Asia (LOBBY-05)
+  {
+    id: 'CODE-13',
+    code: 'VKA-BOSS-5501',
+    companyId: 'COMP-05',
+    companyName: 'PT Ventura Kapital Asia',
+    bracketId: 'LOBBY-05',
+    roomName: 'Bracket 05 - Ruang Eksekutif & Klien',
+    role: 'boss',
+    roleName: 'Boss / Managing Partner',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-03-15T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  {
+    id: 'CODE-14',
+    code: 'VKA-HUMAS-6632',
+    companyId: 'COMP-05',
+    companyName: 'PT Ventura Kapital Asia',
+    bracketId: 'LOBBY-05',
+    roomName: 'Bracket 05 - Ruang Eksekutif & Klien',
+    role: 'humas',
+    roleName: 'Humas / Executive Liaison',
+    isActive: true,
+    usedCount: 1,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-03-15T08:00:00Z',
+    createdBy: 'Super Admin',
+  },
+  {
+    id: 'CODE-15',
+    code: 'VKA-STAFF-7721',
+    companyId: 'COMP-05',
+    companyName: 'PT Ventura Kapital Asia',
+    bracketId: 'LOBBY-05',
+    roomName: 'Bracket 05 - Ruang Eksekutif & Klien',
+    role: 'staff',
+    roleName: 'Staff Investment Analyst',
+    isActive: true,
+    usedCount: 2,
+    expiresAt: '2026-12-31T23:59:59Z',
+    createdAt: '2026-03-15T08:00:00Z',
+    createdBy: 'Super Admin',
   },
 ];
 
@@ -793,6 +1062,167 @@ export const lobbyStore = {
   // ---------------------------------------------------------------------------
   // System Audit & Realtime Activity Logs
   // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // Role-Based Unique Access Code Management
+  // ---------------------------------------------------------------------------
+  getAccessCodes(): CompanyAccessCode[] {
+    return memoryAccessCodes;
+  },
+
+  getAccessCodesByCompany(companyId: string): CompanyAccessCode[] {
+    return memoryAccessCodes.filter((c) => c.companyId === companyId);
+  },
+
+  generateAccessCode(data: {
+    companyId: string;
+    role: 'boss' | 'humas' | 'staff';
+    customCode?: string;
+    notes?: string;
+    createdBy?: string;
+  }): { success: boolean; message?: string; accessCode?: CompanyAccessCode } {
+    const comp = memoryCompanies.find((c) => c.id === data.companyId);
+    if (!comp) {
+      return { success: false, message: 'Data perusahaan tidak ditemukan.' };
+    }
+    const lobby = memoryLobbies.find((l) => l.id === comp.assignedBracketId);
+
+    const prefix = comp.name
+      .split(' ')
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 3) || 'CORP';
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const codeStr =
+      data.customCode?.trim().toUpperCase() ||
+      `${prefix}-${data.role.toUpperCase()}-${randomSuffix}`;
+
+    if (memoryAccessCodes.some((c) => c.code.toUpperCase() === codeStr)) {
+      return {
+        success: false,
+        message: `Kode ${codeStr} sudah terdaftar. Silakan gunakan kombinasi kode unik lain.`,
+      };
+    }
+
+    const roleNames: Record<string, string> = {
+      boss: 'Boss / Pimpinan Eksekutif',
+      humas: 'Humas / Corporate Affairs PIC',
+      staff: 'Staff Internal',
+    };
+
+    const newCode: CompanyAccessCode = {
+      id: `CODE-${Date.now()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
+      code: codeStr,
+      companyId: comp.id,
+      companyName: comp.name,
+      bracketId: comp.assignedBracketId,
+      roomName: lobby ? lobby.name : `Room ${comp.name}`,
+      role: data.role,
+      roleName: roleNames[data.role] || 'Staff Internal',
+      isActive: true,
+      usedCount: 0,
+      expiresAt: comp.validUntil || '2026-12-31T23:59:59Z',
+      createdAt: new Date().toISOString(),
+      createdBy: data.createdBy || 'Super Admin',
+      notes: data.notes || `Kode akses resmi role ${data.role} untuk ${comp.name}`,
+    };
+
+    memoryAccessCodes.unshift(newCode);
+    this.addAuditLog(
+      'admin',
+      'ACCESS_CODE_GENERATED',
+      data.createdBy || 'Admin',
+      `Kode akses role diterbitkan: ${newCode.code} [${newCode.role}] untuk ${comp.name}`
+    );
+    return { success: true, accessCode: newCode };
+  },
+
+  toggleAccessCode(codeId: string, isActive: boolean): boolean {
+    const found = memoryAccessCodes.find((c) => c.id === codeId);
+    if (!found) return false;
+    found.isActive = isActive;
+    this.addAuditLog(
+      'admin',
+      'ACCESS_CODE_TOGGLED',
+      'Admin',
+      `Status kode ${found.code} diubah menjadi: ${isActive ? 'AKTIF' : 'NONAKTIF'}`
+    );
+    return true;
+  },
+
+  validateAccessCode(codeString: string): {
+    valid: boolean;
+    message: string;
+    accessCode?: CompanyAccessCode;
+    company?: CompanyRecord;
+    lobby?: LobbyBracket;
+  } {
+    if (!codeString || typeof codeString !== 'string') {
+      return { valid: false, message: 'Kode akses tidak boleh kosong.' };
+    }
+    const clean = codeString.trim().toUpperCase();
+    const found = memoryAccessCodes.find((c) => c.code.toUpperCase() === clean);
+    if (!found) {
+      return {
+        valid: false,
+        message:
+          'Kode akses tidak ditemukan. Pastikan Anda memasukkan kode akses unik yang diberikan Admin atau PIC Humas perusahaan.',
+      };
+    }
+
+    if (!found.isActive) {
+      return {
+        valid: false,
+        message: 'Kode akses ini telah dinonaktifkan oleh Administrator platform.',
+      };
+    }
+
+    if (new Date(found.expiresAt).getTime() < Date.now()) {
+      return {
+        valid: false,
+        message:
+          'Masa berlaku kode akses ini telah kedaluwarsa. Silakan hubungi PIC Humas perusahaan untuk pembaruan lisensi.',
+      };
+    }
+
+    const company = memoryCompanies.find((c) => c.id === found.companyId);
+    if (!company) {
+      return { valid: false, message: 'Data perusahaan untuk kode ini tidak ditemukan.' };
+    }
+
+    if (company.status === 'suspended') {
+      return {
+        valid: false,
+        message: `Akses kantor ${company.name} sedang ditangguhkan. Hubungi Administrator platform.`,
+      };
+    }
+
+    const lobby = memoryLobbies.find((l) => l.id === found.bracketId);
+    if (!lobby || !lobby.isActive) {
+      return {
+        valid: false,
+        message: 'Ruang kantor virtual perusahaan sedang offline atau dinonaktifkan.',
+      };
+    }
+
+    found.usedCount += 1;
+    this.addAuditLog(
+      'bracket',
+      'ACCESS_CODE_USED',
+      clean,
+      `Kode ${found.code} [${found.role}] digunakan untuk mengakses ${found.roomName}`
+    );
+
+    return {
+      valid: true,
+      message: `Kode valid! Selamat datang di ${company.name} (${found.roleName}).`,
+      accessCode: found,
+      company,
+      lobby,
+    };
+  },
+
   getAuditLogs() {
     return activityLogs;
   },
