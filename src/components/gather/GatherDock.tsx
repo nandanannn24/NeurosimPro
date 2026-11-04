@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Video, VideoOff, ScreenShare, Users, MessageSquare, Smile, ChevronUp, Shirt } from 'lucide-react';
 
-export type UserStatus = 'available' | 'busy' | 'pantry';
+export type UserStatus = 'available' | 'busy' | 'pantry' | 'afk';
 
 interface Props {
   isMicOn: boolean;
@@ -69,6 +69,8 @@ export const GatherDock: React.FC<Props> = ({
         return 'bg-brick';
       case 'pantry':
         return 'bg-ochre';
+      case 'afk':
+        return 'bg-amber-400';
     }
   };
 
@@ -80,6 +82,8 @@ export const GatherDock: React.FC<Props> = ({
         return 'Fokus Kerja';
       case 'pantry':
         return 'Di Pantry';
+      case 'afk':
+        return 'AFK / Istirahat';
     }
   };
 
@@ -179,6 +183,17 @@ export const GatherDock: React.FC<Props> = ({
               >
                 <span className="w-2 h-2 rounded-full bg-ochre" />
                 <span>Di Pantry</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onChangeStatus('afk');
+                  setShowStatusMenu(false);
+                }}
+                className="w-full text-left px-2 py-1 rounded hover:bg-sand flex items-center gap-2"
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span>AFK / Istirahat</span>
               </button>
               <div className="h-[1px] bg-[#d1c7b5] my-1" />
               <button

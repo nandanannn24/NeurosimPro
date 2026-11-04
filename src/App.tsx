@@ -560,12 +560,27 @@ export const App: React.FC = () => {
 
   const handleCloseScreenShare = useCallback(() => {
     setIsScreenSharing(false);
+    multiplayerService.sendMediaState({ isScreenSharing: false });
+    EventBus.emit(GAME_EVENTS.SCREEN_SHARE_CHANGED, { isScreenSharing: false });
+    EventBus.emit(GAME_EVENTS.RESUME_INPUT);
   }, []);
 
   const handleToggleScreenShare = useCallback(() => {
-    EventBus.emit(GAME_EVENTS.PAUSE_INPUT);
-    setIsScreenSharing((s) => !s);
-  }, []);
+    setIsScreenSharing((s) => {
+      const next = !s;
+      multiplayerService.sendMediaState({ isScreenSharing: next });
+      EventBus.emit(GAME_EVENTS.SCREEN_SHARE_CHANGED, {
+        isScreenSharing: next,
+        sharerName: currentUser?.fullName || getUserDisplayName(currentUser),
+      });
+      if (next) {
+        EventBus.emit(GAME_EVENTS.PAUSE_INPUT);
+      } else {
+        EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+      }
+      return next;
+    });
+  }, [currentUser]);
 
   // Online Multiplayer Room Management Handlers
   const handleJoinRoom = useCallback(
