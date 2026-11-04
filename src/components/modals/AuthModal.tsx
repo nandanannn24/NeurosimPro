@@ -485,14 +485,6 @@ export const AuthModal: React.FC<Props> = ({
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleLogin(undefined, 'admin', 'admin123')}
-                        className="py-1.5 px-2 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
-                      >
-                        <ShieldCheck className="w-3 h-3 text-amber-600" />
-                        <span>Admin</span>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => handleLogin(undefined, 'leader', 'leader123')}
                         className="py-1.5 px-2 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                       >

@@ -26,6 +26,7 @@ import { LeaderDashboardView } from './components/views/LeaderDashboardView';
 import { GuestLobbyView } from './components/views/GuestLobbyView';
 import { EnterOfficeView } from './components/views/EnterOfficeView';
 import { NeuroAssistantModal } from './components/modals/NeuroAssistantModal';
+import { AdminComplexLoginModal } from './components/auth/AdminComplexLoginModal';
 import { CompanyAccessCode, CompanyRecord } from './types/lobby';
 import { Bot, ArrowRight } from 'lucide-react';
 import { TopCameraBar } from './components/gather/TopCameraBar';
@@ -123,6 +124,7 @@ export const App: React.FC = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
   const [isAiGuideOpen, setIsAiGuideOpen] = useState(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [companyAccess, setCompanyAccess] = useState<{ accessCode?: CompanyAccessCode; company?: CompanyRecord } | null>(() => {
     try {
       const saved = localStorage.getItem('neurosim_company_access');
@@ -827,6 +829,27 @@ export const App: React.FC = () => {
     setCurrentView('landing');
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Secret key combinations: Ctrl + Shift + A or Alt + Shift + K
+      if (
+        (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) ||
+        (e.altKey && e.shiftKey && (e.key === 'K' || e.key === 'k'))
+      ) {
+        e.preventDefault();
+        setIsAdminLoginOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  const isSuperAdmin = useMemo(() => {
+    return (
+      currentUser?.username?.toLowerCase() === 'nandzzz' ||
+      (currentUser as any)?.roleSlug === 'super_admin'
+    );
+  }, [currentUser]);
+
   const completedCount = tasks.filter((t) => t.completed).length;
 
   return (
@@ -839,16 +862,28 @@ export const App: React.FC = () => {
       {/* 0. SPECIALIZED DASHBOARDS & ACCESS VIEWS (Admin, Leader, Guest)     */}
       {/* ------------------------------------------------------------------- */}
       {currentView === 'admin' && (
-        <AdminDashboardView
-          currentUser={currentUser}
-          onNavigateHome={() => navigateTo('dashboard', '/')}
-          onOpenAuth={() => setIsAuthOpen(true)}
-          onEnterRoom={(bracketId) => {
-            setCurrentLobbyId(bracketId);
-            navigateTo('simulation', '/simulation');
-            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
-          }}
-        />
+        isSuperAdmin ? (
+          <AdminDashboardView
+            currentUser={currentUser}
+            onNavigateHome={() => navigateTo('dashboard', '/')}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onEnterRoom={(bracketId) => {
+              setCurrentLobbyId(bracketId);
+              navigateTo('simulation', '/simulation');
+              EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+            }}
+          />
+        ) : (
+          <AdminComplexLoginModal
+            isOpen={true}
+            isDirectRoute={true}
+            onClose={() => navigateTo('dashboard', '/')}
+            onSuccess={(adminUser) => {
+              setCurrentUser(adminUser);
+              EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+            }}
+          />
+        )
       )}
 
       {currentView === 'leader' && (

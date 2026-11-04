@@ -127,6 +127,7 @@ interface Props {
   onNavigateEnterOffice?: () => void;
   onNavigatePublicLobby?: () => void;
   onOpenAiGuide?: () => void;
+  onOpenAdminLogin?: () => void;
 }
 
 export const DashboardView: React.FC<Props> = ({
@@ -149,8 +150,9 @@ export const DashboardView: React.FC<Props> = ({
   onNavigateEnterOffice,
   onNavigatePublicLobby,
   onOpenAiGuide,
+  onOpenAdminLogin,
 }) => {
-  const isAdmin = currentUser?.role?.toLowerCase().includes('admin') || (currentUser as any)?.roleSlug === 'super_admin';
+  const isSuperAdmin = currentUser?.username?.toLowerCase() === 'nandzzz' || (currentUser as any)?.roleSlug === 'super_admin';
   const isLeader = currentUser?.role?.toLowerCase().includes('leader') || currentUser?.role?.toLowerCase().includes('manager') || (currentUser as any)?.roleSlug === 'manager';
   const [previewDirection, setPreviewDirection] = useState<CharacterDirection>('south');
   const [lobbies, setLobbies] = useState<any[]>([]);
@@ -209,7 +211,7 @@ export const DashboardView: React.FC<Props> = ({
             </button>
           )}
 
-          {onNavigateAdmin && isAdmin && (
+          {onNavigateAdmin && isSuperAdmin && (
             <button
               type="button"
               onClick={onNavigateAdmin}

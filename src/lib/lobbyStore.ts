@@ -593,15 +593,15 @@ let memoryBillingSessions: BillingSession[] = [
 let memoryUsers: EnterpriseUserRecord[] = [
   {
     id: 1,
-    username: 'admin',
-    email: 'admin@neurosimpro.com',
-    fullName: 'Administrator NeuroSim Pro',
+    username: 'Nandzzz',
+    email: 'nandzzz@neurosimpro.com',
+    fullName: 'Nandzzz (Super Administrator)',
     role: 'Super Administrator',
     roleSlug: 'super_admin',
-    title: 'Platform Administrator',
-    department: 'Enterprise System Operation',
+    title: 'System Owner & Super Administrator',
+    department: 'Executive Security Core',
     avatar: '/assets/characters/office-worker/standing/south.png',
-    companyName: 'NeuroSim Pro Core Team',
+    companyName: 'PT Inovasi Digital Nusantara',
     bracketId: 'ALL',
     isActive: true,
     createdAt: '2026-01-01T00:00:00Z',
@@ -701,6 +701,167 @@ export const lobbyStore = {
   // ---------------------------------------------------------------------------
   // Lobby Brackets
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // MySQL Live Database Synchronization
+  // ---------------------------------------------------------------------------
+  async syncFromDatabase() {
+    const pool = getDbPool();
+    if (!pool) return;
+    try {
+      // 1. Users
+      const [userRows]: any = await pool.query(`
+        SELECT u.id, u.username, u.email, u.full_name as fullName, r.name as role, r.slug as roleSlug,
+               u.title, u.department, u.avatar, u.company_name as companyName, u.bracket_id as bracketId,
+               u.is_active as isActive, u.created_at as createdAt
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+      `);
+      if (userRows && userRows.length > 0) {
+        memoryUsers = userRows.map((r: any) => ({
+          id: r.id,
+          username: r.username,
+          email: r.email,
+          fullName: r.fullName,
+          role: r.role || 'Employee / Member',
+          roleSlug: (r.roleSlug || 'employee') as any,
+          title: r.title || 'Staff Kolaborasi',
+          department: r.department || 'Divisi Antarmuka & Frontend',
+          avatar: r.avatar || '/assets/characters/resident/standing/south.png',
+          companyName: r.companyName || 'PT Inovasi Digital Nusantara',
+          bracketId: r.bracketId || 'LOBBY-01',
+          isActive: Boolean(r.isActive),
+          createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
+        }));
+      }
+
+      // 2. Companies
+      const [compRows]: any = await pool.query('SELECT * FROM companies');
+      if (compRows && compRows.length > 0) {
+        memoryCompanies = compRows.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          logo: c.logo || '/logo.webp',
+          assignedBracketId: c.assigned_bracket_id,
+          billingKey: c.billing_key,
+          plan: c.plan,
+          status: c.status,
+          validUntil: c.valid_until,
+          humasContact: {
+            name: c.humas_name,
+            email: c.humas_email,
+            phone: c.humas_phone,
+            title: c.humas_title,
+            notes: c.humas_notes,
+          },
+          leaderName: c.leader_name,
+          createdAt: typeof c.created_at === 'string' ? c.created_at : new Date(c.created_at).toISOString(),
+        }));
+      }
+
+      // 3. Lobbies
+      const [lobbyRows]: any = await pool.query('SELECT * FROM lobby_brackets');
+      if (lobbyRows && lobbyRows.length > 0) {
+        memoryLobbies = lobbyRows.map((l: any) => {
+          let feats = { videoConference: true, screenShare: true, breakoutRooms: true, chatRealtime: true };
+          try {
+            if (l.features_json) feats = typeof l.features_json === 'string' ? JSON.parse(l.features_json) : l.features_json;
+          } catch {}
+          return {
+            id: l.id,
+            name: l.name,
+            companyName: l.company_name,
+            billingKey: l.billing_key,
+            isActive: Boolean(l.is_active),
+            isLocked: Boolean(l.is_locked),
+            maxCapacity: l.max_capacity,
+            onlineCount: l.online_count,
+            serverRegion: l.server_region,
+            features: feats,
+            humasContact: l.humas_name ? {
+              name: l.humas_name,
+              email: l.humas_email,
+              phone: l.humas_phone,
+              title: l.humas_title,
+              notes: l.humas_notes,
+            } : undefined,
+            leaderName: l.leader_name,
+            createdAt: typeof l.created_at === 'string' ? l.created_at : new Date(l.created_at).toISOString(),
+            updatedAt: typeof l.updated_at === 'string' ? l.updated_at : new Date(l.updated_at).toISOString(),
+          };
+        });
+      }
+
+      // 4. Access Codes
+      const [codeRows]: any = await pool.query('SELECT * FROM company_access_codes');
+      if (codeRows && codeRows.length > 0) {
+        memoryAccessCodes = codeRows.map((a: any) => ({
+          id: a.id,
+          code: a.code,
+          companyId: a.company_id,
+          companyName: a.company_name,
+          bracketId: a.bracket_id,
+          roomName: a.room_name,
+          role: a.role,
+          roleName: a.role_name,
+          isActive: Boolean(a.is_active),
+          usedCount: a.used_count,
+          maxUses: a.max_uses,
+          expiresAt: a.expires_at,
+          createdBy: a.created_by,
+          notes: a.notes,
+          createdAt: typeof a.created_at === 'string' ? a.created_at : new Date(a.created_at).toISOString(),
+        }));
+      }
+
+      // 5. Billing Sessions
+      const [billRows]: any = await pool.query('SELECT * FROM billing_sessions');
+      if (billRows && billRows.length > 0) {
+        memoryBillingSessions = billRows.map((b: any) => {
+          let assigned = ['LOBBY-01'];
+          try {
+            if (b.assigned_lobbies_json) assigned = typeof b.assigned_lobbies_json === 'string' ? JSON.parse(b.assigned_lobbies_json) : b.assigned_lobbies_json;
+          } catch {}
+          return {
+            id: b.id,
+            companyName: b.company_name,
+            billingKey: b.billing_key,
+            plan: b.plan,
+            maxSeatsPerBracket: b.max_seats_per_bracket,
+            totalAllocatedLobbies: b.total_allocated_lobbies,
+            status: b.status,
+            validUntil: b.valid_until,
+            contactEmail: b.contact_email,
+            assignedLobbies: assigned,
+            humasContact: b.humas_name ? {
+              name: b.humas_name,
+              email: b.humas_email,
+              phone: b.humas_phone,
+              title: 'Head of PR & Liaison',
+            } : undefined,
+            notes: b.notes,
+            createdAt: typeof b.created_at === 'string' ? b.created_at : new Date(b.created_at).toISOString(),
+          };
+        });
+      }
+
+      // 6. Activity Logs
+      const [logRows]: any = await pool.query('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 50');
+      if (logRows && logRows.length > 0) {
+        activityLogs = logRows.map((lg: any) => ({
+          id: `log-${lg.id}`,
+          timestamp: typeof lg.created_at === 'string' ? lg.created_at : new Date(lg.created_at).toISOString(),
+          category: lg.category,
+          action: lg.action,
+          actor: lg.actor,
+          details: lg.details,
+        }));
+      }
+    } catch (err) {
+      console.warn('[lobbyStore DB Sync Error]:', err);
+    }
+  },
+
   getLobbies(): LobbyBracket[] {
     return memoryLobbies;
   },
@@ -1238,6 +1399,10 @@ export const lobbyStore = {
     };
     activityLogs.unshift(log);
     if (activityLogs.length > 100) activityLogs.pop();
+    const pool = getDbPool();
+    if (pool) {
+      pool.query('INSERT INTO activity_logs (category, action, actor, details) VALUES (?, ?, ?, ?)', [category, action, actor, details]).catch(() => {});
+    }
   },
 
   getSystemOverview() {
@@ -1262,3 +1427,6 @@ export const lobbyStore = {
     };
   },
 };
+
+// Auto sync from MySQL on startup
+lobbyStore.syncFromDatabase().catch((e) => console.warn('[lobbyStore Initial Sync]:', e));

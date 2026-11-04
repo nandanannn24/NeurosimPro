@@ -30,6 +30,7 @@ interface Props {
   onNavigateLeader?: () => void;
   onOpenAiGuide?: () => void;
   onNavigateEnterOffice?: () => void;
+  onOpenAdminLogin?: () => void;
 }
 
 const getUserDisplayName = (user: UserProfile | null): string => {
@@ -66,9 +67,24 @@ export const Header: React.FC<Props> = ({
   onNavigateLeader,
   onOpenAiGuide,
   onNavigateEnterOffice,
+  onOpenAdminLogin,
 }) => {
-  const isAdmin = currentUser?.role?.toLowerCase().includes('admin') || (currentUser as any)?.roleSlug === 'super_admin';
+  const isSuperAdmin = currentUser?.username?.toLowerCase() === 'nandzzz' || (currentUser as any)?.roleSlug === 'super_admin';
   const isLeader = currentUser?.role?.toLowerCase().includes('leader') || currentUser?.role?.toLowerCase().includes('manager') || (currentUser as any)?.roleSlug === 'manager';
+  const [logoClicks, setLogoClicks] = React.useState(0);
+  const handleLogoClick = () => {
+    setLogoClicks((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        if (onOpenAdminLogin) onOpenAdminLogin();
+        return 0;
+      }
+      return next;
+    });
+    setTimeout(() => {
+      setLogoClicks(0);
+    }, 2500);
+  };
   const roomName = currentRoom?.name || 'Kantor Pusat NeuroSim Pro';
   const roomCode = currentRoom?.code || 'NEURO-HQ-88';
   const displayName = getUserDisplayName(currentUser);
@@ -78,7 +94,7 @@ export const Header: React.FC<Props> = ({
       {/* 1. Left Product Brand, Dashboard Shortcut, & Active Online Room Pill */}
       <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded overflow-hidden bg-cream border border-[#355c5a]/30 flex-shrink-0 shadow-2xs">
+          <div onClick={handleLogoClick} title="NeuroSim Pro" className="w-7 h-7 sm:w-8 sm:h-8 rounded overflow-hidden bg-cream border border-[#355c5a]/30 flex-shrink-0 shadow-2xs cursor-pointer select-none">
             <img
               src="/logo.webp"
               alt="Logo NeuroSim Pro"
@@ -130,7 +146,7 @@ export const Header: React.FC<Props> = ({
       <div className="flex items-center gap-1.5 sm:gap-2">
 
         {/* Admin Dashboard Route Trigger (/x90x9admin) */}
-        {isAdmin && onNavigateAdmin && (
+        {isSuperAdmin && onNavigateAdmin && (
           <button
             type="button"
             onClick={onNavigateAdmin}
