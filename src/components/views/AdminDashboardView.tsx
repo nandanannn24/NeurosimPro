@@ -1292,3 +1292,4 @@ export const AdminDashboardView: React.FC<Props> = ({
     </div>
   );
 };
+

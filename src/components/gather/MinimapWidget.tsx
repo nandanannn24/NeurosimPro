@@ -12,7 +12,12 @@ export const MinimapWidget: React.FC<Props> = ({
   currentZoneName = 'Workstation Utama',
   remotePlayers = [],
 }) => {
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return true;
+    }
+    return false;
+  });
   const [localPos, setLocalPos] = useState({ x: 1375, y: 1260 });
 
   // Map world dimensions (Phaser map coordinate bounds)
@@ -41,7 +46,7 @@ export const MinimapWidget: React.FC<Props> = ({
   const toMiniY = (worldY: number) => Math.max(2, Math.min(MINIMAP_HEIGHT - 2, (worldY / WORLD_HEIGHT) * MINIMAP_HEIGHT));
 
   return (
-    <div className="absolute bottom-3 left-3 z-30 select-none pointer-events-auto transition-all duration-300">
+    <div className="absolute top-16 left-3 md:top-auto md:bottom-3 md:left-3 z-30 select-none pointer-events-auto transition-all duration-300">
       {isMinimized ? (
         <button
           type="button"
@@ -171,3 +176,4 @@ export const MinimapWidget: React.FC<Props> = ({
     </div>
   );
 };
+

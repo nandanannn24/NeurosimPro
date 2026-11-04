@@ -182,6 +182,10 @@ export class OfficeScene extends Phaser.Scene {
   private lastStandPos: { x: number; y: number } = { x: 0, y: 0 };
   private lastStandUpTime = 0;
 
+  // Mobile virtual analog joystick & touch interaction
+  private analogVector: { x: number; y: number } = { x: 0, y: 0 };
+  private mobileActionRequested = false;
+
   // Interaction State
   private isPlayerLocked = false;
   private promptText!: Phaser.GameObjects.Text;
@@ -291,6 +295,7 @@ export class OfficeScene extends Phaser.Scene {
     this.seats = [];
     this.isSitting = false;
     this.currentSeat = null;
+    EventBus.emit('LOCAL_PLAYER_SITTING_CHANGED', false);
     this.playerNametagContainer?.setVisible(true);
     // 1. Office Ground Texture (WebP 2752×1536)
     this.add.image(0, 0, 'office-ground').setOrigin(0, 0).setDepth(0);
@@ -380,6 +385,8 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.on(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
     EventBus.on(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
     EventBus.on(GAME_EVENTS.REMOTE_MEDIA_CHANGED, this.handleRemoteMediaChanged, this);
+    EventBus.on('ANALOG_JOYSTICK_MOVE', this.handleAnalogJoystickMove, this);
+    EventBus.on('MOBILE_INTERACT', this.handleMobileInteract, this);
 
     if (typeof window !== 'undefined') {
       window.addEventListener('neurosim_user_profile_updated', this.handleUserProfileUpdated);
@@ -479,6 +486,18 @@ export class OfficeScene extends Phaser.Scene {
     }
   }
 
+  public handleAnalogJoystickMove = (data: { x: number; y: number }): void => {
+    if (data && typeof data.x === 'number' && typeof data.y === 'number') {
+      this.analogVector = data;
+    } else {
+      this.analogVector = { x: 0, y: 0 };
+    }
+  };
+
+  public handleMobileInteract = (): void => {
+    this.mobileActionRequested = true;
+  };
+
   // =========================================================================
   // UPDATE LOOP
   // =========================================================================
@@ -491,10 +510,11 @@ export class OfficeScene extends Phaser.Scene {
     if (this.isSitting) {
       this.player.setVelocity(0, 0);
 
-      // Check if user wants to stand up: STRICTLY ONLY SPACE KEY!
-      const wantsStandUp = Phaser.Input.Keyboard.JustDown(this.keySpace);
+      // Check if user wants to stand up: SPACE KEY or Mobile Action Button
+      const wantsStandUp = Phaser.Input.Keyboard.JustDown(this.keySpace) || this.mobileActionRequested;
 
       if (wantsStandUp) {
+        this.mobileActionRequested = false;
         if (this.keySpace) this.keySpace.reset();
         this.standUp();
       } else {
@@ -715,6 +735,14 @@ export class OfficeScene extends Phaser.Scene {
       vy *= diagFactor;
     }
 
+    // Blend virtual analog joystick vector if active and no physical keyboard overriding
+    if (this.analogVector.x !== 0 || this.analogVector.y !== 0) {
+      if (vx === 0 && vy === 0) {
+        vx = this.analogVector.x * speed;
+        vy = this.analogVector.y * speed;
+      }
+    }
+
     this.player.setVelocity(vx, vy);
 
     // Continuous, blink-free walking animation with full diagonal (serong) support
@@ -730,7 +758,7 @@ export class OfficeScene extends Phaser.Scene {
         const hDir = vx > 0 ? 'east' : 'west';
         const diagDir = `${vDir}-${hDir}`;
 
-        // Intent detection: periksa tombol mana yang ditekan paling baru (timeDown)
+        // Intent detection: periksa tombol mana yang ditekan paling baru (timeDown) atau magnitude analog
         const vTime = vy > 0
           ? Math.max(this.wasd?.S?.timeDown || 0, this.cursors.down?.timeDown || 0)
           : Math.max(this.wasd?.W?.timeDown || 0, this.cursors.up?.timeDown || 0);
@@ -743,8 +771,10 @@ export class OfficeScene extends Phaser.Scene {
         if (this.anims.exists(diagAnimKey)) {
           chosenAnim = diagAnimKey;
         } else {
-          // Fallback dinamis mengikuti arah tombol yang terakhir ditekan
-          const dominantDir = hTime >= vTime ? hDir : vDir;
+          // Fallback dinamis mengikuti arah tombol yang terakhir ditekan atau dominan analog
+          const dominantDir = Math.abs(vx) !== Math.abs(vy)
+            ? (Math.abs(vx) > Math.abs(vy) ? hDir : vDir)
+            : (hTime >= vTime ? hDir : vDir);
           chosenAnim = `${this.playerArchetypeKey}-walk-${dominantDir}`;
         }
 
@@ -758,10 +788,11 @@ export class OfficeScene extends Phaser.Scene {
       } else {
         // Gerak Lurus (Kardinal)
         let dir: string;
-        if (vx > 0) dir = 'east';
-        else if (vx < 0) dir = 'west';
-        else if (vy > 0) dir = 'south';
-        else dir = 'north';
+        if (Math.abs(vx) > Math.abs(vy)) {
+          dir = vx > 0 ? 'east' : 'west';
+        } else {
+          dir = vy > 0 ? 'south' : 'north';
+        }
 
         this.lastDirection = dir;
         targetAngle = 0;
@@ -810,6 +841,9 @@ export class OfficeScene extends Phaser.Scene {
 
     // Check nearby interactive objects
     this.checkInteractions();
+
+    // Reset single-frame mobile action request
+    this.mobileActionRequested = false;
   }
 
   // =========================================================================
@@ -1652,7 +1686,8 @@ export class OfficeScene extends Phaser.Scene {
       this.isNearTodoList = true;
       this.showPrompt(TODO_POS.x, TODO_POS.y + 65, 'Tekan [E] Buka Papan Agenda');
 
-      if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      if (Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested) {
+        this.mobileActionRequested = false;
         this.lockPlayer();
         EventBus.emit(GAME_EVENTS.OPEN_TODO_LIST);
       }
@@ -1665,7 +1700,8 @@ export class OfficeScene extends Phaser.Scene {
     const distToEspresso = Phaser.Math.Distance.Between(this.player.x, this.player.y, 510, 140);
     if (distToEspresso < 75) {
       this.showPrompt(510, 160, 'Tekan [E] Seduh Kopi Espresso');
-      if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      if (Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested) {
+        this.mobileActionRequested = false;
         this.spawnReactionForTarget(this.player.x, this.player.y, '☕', this.activeEmotes);
         multiplayerService.sendReaction('☕');
         this.showTopBanner('☕ Espresso Segar Siap!', 'Menikmati seduhan kopi hangat di pantry kantor.');
@@ -1677,7 +1713,8 @@ export class OfficeScene extends Phaser.Scene {
     const distToWater = Phaser.Math.Distance.Between(this.player.x, this.player.y, 960, 230);
     if (distToWater < 75) {
       this.showPrompt(960, 250, 'Tekan [E] Minum Air Mineral');
-      if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      if (Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested) {
+        this.mobileActionRequested = false;
         this.spawnReactionForTarget(this.player.x, this.player.y, '💧', this.activeEmotes);
         multiplayerService.sendReaction('💧');
         this.showTopBanner('💧 Segar!', 'Menjaga hidrasi tubuh selama jam kerja produktif.');
@@ -1724,7 +1761,8 @@ export class OfficeScene extends Phaser.Scene {
         this.promptContainer.setVisible(false);
       }
 
-      if (canSit && (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE))) {
+      if (canSit && (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested)) {
+        this.mobileActionRequested = false;
         if (isOccupiedByOther) {
           const occupant = nearestSeat.occupiedBy?.fullName || nearestSeat.occupiedBy?.username || 'Rekan';
           this.showTopBanner(
@@ -1774,6 +1812,7 @@ export class OfficeScene extends Phaser.Scene {
   private sitDown(seat: SeatSpot): void {
     this.isSitting = true;
     this.currentSeat = seat;
+    EventBus.emit('LOCAL_PLAYER_SITTING_CHANGED', true);
     this.lastStandPos = { x: this.player.x, y: this.player.y };
     if (this.player?.body) {
       this.player.body.enable = false; // Disable body physics while seated so it doesn't push against furniture
@@ -3010,6 +3049,8 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.off(GAME_EVENTS.SEAT_VACATED, this.handleSeatVacated, this);
     EventBus.off(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
     EventBus.off(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
+    EventBus.off('ANALOG_JOYSTICK_MOVE', this.handleAnalogJoystickMove, this);
+    EventBus.off('MOBILE_INTERACT', this.handleMobileInteract, this);
     EventBus.off(GAME_EVENTS.REMOTE_MEDIA_CHANGED, this.handleRemoteMediaChanged, this);
 
     if (typeof window !== 'undefined') {

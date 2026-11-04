@@ -26,6 +26,7 @@ import { LeaderDashboardView } from './components/views/LeaderDashboardView';
 import { GuestLobbyView } from './components/views/GuestLobbyView';
 import { TopCameraBar } from './components/gather/TopCameraBar';
 import { MinimapWidget } from './components/gather/MinimapWidget';
+import { MobileVirtualControls } from './components/gather/MobileVirtualControls';
 
 // Virtual office workspace components
 import { GatherDock, UserStatus } from './components/gather/GatherDock';
@@ -924,6 +925,11 @@ export const App: React.FC = () => {
                   currentZoneName={currentZoneName}
                   remotePlayers={onlineRemotePlayers}
                 />
+              )}
+
+              {/* Mobile Priority Virtual Controls (Analog Joystick + Action Button) */}
+              {currentView === 'simulation' && (
+                <MobileVirtualControls isSitting={userStatus === 'busy'} />
               )}
 
               {/* Right-Side Live Bracket Status Sidebar (Unified Participants Panel) */}

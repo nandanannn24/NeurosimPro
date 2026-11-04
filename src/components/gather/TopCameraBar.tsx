@@ -196,3 +196,4 @@ export const TopCameraBar: React.FC<Props> = ({
     </div>
   );
 };
+
