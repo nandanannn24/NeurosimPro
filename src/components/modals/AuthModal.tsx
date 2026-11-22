@@ -17,10 +17,11 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile | null;
-  onLoginSuccess: (user: UserProfile, history?: any[]) => void;
+  onLoginSuccess: (user: UserProfile, history?: any[], token?: string) => void;
   onLogout: () => void;
   userHistory?: any[];
   userAvatar?: string;
+  restrictionNotice?: string | null;
 }
 
 const AVATAR_OPTIONS = [
@@ -49,14 +50,42 @@ export const ENTERPRISE_DEMO_USERS: Record<string, { pass: string[]; user: UserP
       textScale: 'normal',
     },
   },
+  leader: {
+    pass: ['leader123', 'admin123', 'password123'],
+    user: {
+      id: 2,
+      username: 'leader',
+      fullName: 'Operations Lead (Bos Ruangan)',
+      role: 'Bos / Leader Divisi',
+      department: 'Divisi Kolaborasi & Delivery',
+      avatar: '/assets/characters/resident/standing/south.png',
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
   manager: {
-    pass: ['manager123', 'demo123', 'password123'],
+    pass: ['manager123', 'admin123', 'password123'],
     user: {
       id: 2,
       username: 'manager',
-      fullName: 'Operations Lead',
-      role: 'Manager / Team Leader',
+      fullName: 'Operations Lead (Bos Ruangan)',
+      role: 'Bos / Leader Divisi',
       department: 'Divisi Kolaborasi & Delivery',
+      avatar: '/assets/characters/resident/standing/south.png',
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
+  humas: {
+    pass: ['humas123', 'admin123', 'password123'],
+    user: {
+      id: 3,
+      username: 'humas',
+      fullName: 'Rina Wijaya, S.I.Kom',
+      role: 'Humas / Corporate PIC',
+      department: 'Hubungan Masyarakat & Eksternal',
       avatar: '/assets/characters/resident/standing/south.png',
       reduceMotion: false,
       highContrast: false,
@@ -66,10 +95,10 @@ export const ENTERPRISE_DEMO_USERS: Record<string, { pass: string[]; user: UserP
   employee: {
     pass: ['employee123', 'demo123', 'password123'],
     user: {
-      id: 3,
+      id: 4,
       username: 'employee',
-      fullName: 'Staff Pengembang Pro',
-      role: 'Employee / Member',
+      fullName: 'Staff Pengembang Internal',
+      role: 'Pengguna Internal',
       department: 'Divisi Antarmuka & Frontend',
       avatar: '/assets/characters/resident/standing/south.png',
       reduceMotion: false,
@@ -80,10 +109,10 @@ export const ENTERPRISE_DEMO_USERS: Record<string, { pass: string[]; user: UserP
   guest: {
     pass: ['guest123', 'demo123', 'password123'],
     user: {
-      id: 4,
+      id: 5,
       username: 'guest',
-      fullName: 'Tamu Kolaborasi',
-      role: 'Guest / External Attendee',
+      fullName: 'Tamu Eksternal / Pengunjung',
+      role: 'Tamu (Guest)',
       department: 'External Stakeholder',
       avatar: '/assets/characters/courier/standing/south.png',
       reduceMotion: false,
@@ -120,6 +149,7 @@ export const AuthModal: React.FC<Props> = ({
   onLogout,
   userHistory = [],
   userAvatar,
+  restrictionNotice,
 }) => {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [isLoading, setIsLoading] = useState(false);
@@ -161,10 +191,11 @@ export const AuthModal: React.FC<Props> = ({
       }
 
       if (data?.success && data?.user) {
+        if (data.token) { localStorage.setItem("neurosim_auth_token", data.token); }
         saveLocalAccount(u, p, data.user);
         setSuccessMessage('Berhasil masuk! Selamat datang kembali.');
         setTimeout(() => {
-          onLoginSuccess(data.user, data.history || []);
+          onLoginSuccess(data.user, data.history || [], data.token);
           onClose();
         }, 500);
         return;
@@ -254,11 +285,12 @@ export const AuthModal: React.FC<Props> = ({
       }
 
       const finalUser = (data?.success && data?.user) ? data.user : localUser;
+      if (data?.token) { localStorage.setItem("neurosim_auth_token", data.token); }
       saveLocalAccount(cleanUser, cleanPass, finalUser);
 
       setSuccessMessage('ID Karyawan NeuroSim Pro berhasil diterbitkan!');
       setTimeout(() => {
-        onLoginSuccess(finalUser, []);
+        onLoginSuccess(finalUser, [], data?.token);
         onClose();
       }, 500);
     } catch (err: any) {
@@ -307,6 +339,19 @@ export const AuthModal: React.FC<Props> = ({
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-4">
+          {/* Restriction Notice for Guests */}
+          {restrictionNotice && (
+            <div className="p-3.5 rounded-xl bg-amber-500/15 border-2 border-amber-500/50 text-amber-900 text-xs flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 shadow-xs">
+              <span className="text-base leading-none shrink-0 mt-0.5">🔒</span>
+              <div>
+                <strong className="block font-bold text-amber-950 text-xs">Akses Terbatas untuk Tamu</strong>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-900">
+                  {restrictionNotice} Silakan masuk ke akun atau daftarkan ID Anda untuk mengakses fitur kantor perusahaan secara penuh.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Feedback Messages */}
           {errorMessage && (
             <div className="p-2.5 rounded-lg bg-brick/10 border border-brick/30 text-brick text-xs flex items-center gap-2">
@@ -454,38 +499,38 @@ export const AuthModal: React.FC<Props> = ({
                     <p className="text-[11px] text-ink-muted text-center font-medium">
                       ⚡ Masuk Cepat Demo Peran Enterprise:
                     </p>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleLogin(undefined, 'admin', 'admin123')}
-                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        onClick={() => handleLogin(undefined, 'leader', 'leader123')}
+                        className="py-1.5 px-2 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                       >
-                        <ShieldCheck className="w-3 h-3 text-amber-600" />
-                        <span>Super Admin</span>
+                        <Briefcase className="w-3 h-3 text-teal" />
+                        <span>Bos / Leader</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleLogin(undefined, 'manager', 'manager123')}
-                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        onClick={() => handleLogin(undefined, 'humas', 'humas123')}
+                        className="py-1.5 px-2 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                       >
-                        <Briefcase className="w-3 h-3 text-teal" />
-                        <span>Manager Tim</span>
+                        <Building2 className="w-3 h-3 text-ochre" />
+                        <span>Humas (PIC)</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleLogin(undefined, 'employee', 'employee123')}
-                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        className="py-1.5 px-2 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                       >
                         <User className="w-3 h-3 text-blue-600" />
-                        <span>Employee</span>
+                        <span>Karyawan</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleLogin(undefined, 'guest', 'guest123')}
-                        className="py-1.5 px-2.5 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        className="py-1.5 px-2 rounded-lg bg-cream hover:bg-sand border border-[#d1c7b5] text-[11px] font-semibold text-ink transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs sm:col-span-2"
                       >
                         <Building2 className="w-3 h-3 text-ink-muted" />
-                        <span>Tamu Eksternal</span>
+                        <span>Tamu (Guest Lobby)</span>
                       </button>
                     </div>
                   </div>

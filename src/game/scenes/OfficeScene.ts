@@ -105,7 +105,7 @@ const OFFICE_ZONES: OfficeZone[] = [
   {
     id: 'room-pantry',
     name: 'Pantry & Dapur',
-    subtitle: 'Area Istirahat & Rekan Kerja (Dimas)',
+    subtitle: 'Area Istirahat, Barista & Coffee Break',
     badge: 'PANTRY & BREAKROOM',
     borderColor: 0xba8a5c,
     textColor: '#fff9eb',
@@ -114,7 +114,7 @@ const OFFICE_ZONES: OfficeZone[] = [
   {
     id: 'room-meeting',
     name: 'Ruang Rapat & Konferensi',
-    subtitle: 'Ruang Rapat & Presentasi Klien (Pak Hendra)',
+    subtitle: 'Ruang Konferensi Video & Kolaborasi Tim',
     badge: 'CONFERENCE ROOM',
     borderColor: 0x355c5a,
     textColor: '#fff9eb',
@@ -182,6 +182,10 @@ export class OfficeScene extends Phaser.Scene {
   private lastStandPos: { x: number; y: number } = { x: 0, y: 0 };
   private lastStandUpTime = 0;
 
+  // Mobile virtual analog joystick & touch interaction
+  private analogVector: { x: number; y: number } = { x: 0, y: 0 };
+  private mobileActionRequested = false;
+
   // Interaction State
   private isPlayerLocked = false;
   private promptText!: Phaser.GameObjects.Text;
@@ -243,10 +247,11 @@ export class OfficeScene extends Phaser.Scene {
   // Direct active movement keys tracking (immune to canvas focus loss & caps lock)
   private activeMoveKeys: Set<string> = new Set<string>();
 
-  // 30-Minute Inactivity AFK Timer
+  // 15-Minute Mouse Inactivity AFK Timer (Prompt 2 #9)
   private lastUserActivityTime: number = Date.now();
   private isAfk: boolean = false;
-  private readonly AFK_TIMEOUT_MS: number = 30 * 60 * 1000; // 30 Menit
+  private readonly AFK_TIMEOUT_MS: number = 15 * 60 * 1000; // 15 Menit
+  private lastEmittedPos: { x: number; y: number } = { x: 0, y: 0 };
 
   // Meeting Room Max 7 Capacity Door Barrier
   private meetingDoorBarrier!: Phaser.GameObjects.Rectangle;
@@ -290,6 +295,7 @@ export class OfficeScene extends Phaser.Scene {
     this.seats = [];
     this.isSitting = false;
     this.currentSeat = null;
+    EventBus.emit('LOCAL_PLAYER_SITTING_CHANGED', false);
     this.playerNametagContainer?.setVisible(true);
     // 1. Office Ground Texture (WebP 2752×1536)
     this.add.image(0, 0, 'office-ground').setOrigin(0, 0).setDepth(0);
@@ -378,12 +384,17 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.on(GAME_EVENTS.SEAT_VACATED, this.handleSeatVacated, this);
     EventBus.on(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
     EventBus.on(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
+    EventBus.on(GAME_EVENTS.REMOTE_MEDIA_CHANGED, this.handleRemoteMediaChanged, this);
+    EventBus.on('ANALOG_JOYSTICK_MOVE', this.handleAnalogJoystickMove, this);
+    EventBus.on('MOBILE_INTERACT', this.handleMobileInteract, this);
 
     if (typeof window !== 'undefined') {
       window.addEventListener('neurosim_user_profile_updated', this.handleUserProfileUpdated);
+      window.addEventListener('mousemove', this.handleUserActivity);
+      window.addEventListener('mousedown', this.handleUserActivity);
     }
 
-    // Track user input for 30-minute AFK timeout
+    // Track user input for 15-minute AFK timeout
     this.input.on('pointermove', this.handleUserActivity, this);
     this.input.on('pointerdown', this.handleUserActivity, this);
     this.input.keyboard?.on('keydown', this.handleUserActivity, this);
@@ -475,6 +486,18 @@ export class OfficeScene extends Phaser.Scene {
     }
   }
 
+  public handleAnalogJoystickMove = (data: { x: number; y: number }): void => {
+    if (data && typeof data.x === 'number' && typeof data.y === 'number') {
+      this.analogVector = data;
+    } else {
+      this.analogVector = { x: 0, y: 0 };
+    }
+  };
+
+  public handleMobileInteract = (): void => {
+    this.mobileActionRequested = true;
+  };
+
   // =========================================================================
   // UPDATE LOOP
   // =========================================================================
@@ -487,10 +510,11 @@ export class OfficeScene extends Phaser.Scene {
     if (this.isSitting) {
       this.player.setVelocity(0, 0);
 
-      // Check if user wants to stand up: STRICTLY ONLY SPACE KEY!
-      const wantsStandUp = Phaser.Input.Keyboard.JustDown(this.keySpace);
+      // Check if user wants to stand up: SPACE KEY or Mobile Action Button
+      const wantsStandUp = Phaser.Input.Keyboard.JustDown(this.keySpace) || this.mobileActionRequested;
 
       if (wantsStandUp) {
+        this.mobileActionRequested = false;
         if (this.keySpace) this.keySpace.reset();
         this.standUp();
       } else {
@@ -534,6 +558,13 @@ export class OfficeScene extends Phaser.Scene {
     if (this.playerNametagContainer && this.playerNametagContainer.active) {
       this.playerNametagContainer.setPosition(this.player.x, this.player.y);
       this.playerNametagContainer.setDepth(this.player.y + 1000);
+    }
+
+    // Emit local player position for Minimap radar
+    if (this.player && (Math.abs(this.player.x - this.lastEmittedPos.x) > 1 || Math.abs(this.player.y - this.lastEmittedPos.y) > 1)) {
+      this.lastEmittedPos.x = this.player.x;
+      this.lastEmittedPos.y = this.player.y;
+      EventBus.emit('LOCAL_PLAYER_POSITION', { x: this.player.x, y: this.player.y });
     }
 
     // Meeting Room Capacity & Door Lock check
@@ -704,6 +735,14 @@ export class OfficeScene extends Phaser.Scene {
       vy *= diagFactor;
     }
 
+    // Blend virtual analog joystick vector if active and no physical keyboard overriding
+    if (this.analogVector.x !== 0 || this.analogVector.y !== 0) {
+      if (vx === 0 && vy === 0) {
+        vx = this.analogVector.x * speed;
+        vy = this.analogVector.y * speed;
+      }
+    }
+
     this.player.setVelocity(vx, vy);
 
     // Continuous, blink-free walking animation with full diagonal (serong) support
@@ -719,7 +758,7 @@ export class OfficeScene extends Phaser.Scene {
         const hDir = vx > 0 ? 'east' : 'west';
         const diagDir = `${vDir}-${hDir}`;
 
-        // Intent detection: periksa tombol mana yang ditekan paling baru (timeDown)
+        // Intent detection: periksa tombol mana yang ditekan paling baru (timeDown) atau magnitude analog
         const vTime = vy > 0
           ? Math.max(this.wasd?.S?.timeDown || 0, this.cursors.down?.timeDown || 0)
           : Math.max(this.wasd?.W?.timeDown || 0, this.cursors.up?.timeDown || 0);
@@ -732,8 +771,10 @@ export class OfficeScene extends Phaser.Scene {
         if (this.anims.exists(diagAnimKey)) {
           chosenAnim = diagAnimKey;
         } else {
-          // Fallback dinamis mengikuti arah tombol yang terakhir ditekan
-          const dominantDir = hTime >= vTime ? hDir : vDir;
+          // Fallback dinamis mengikuti arah tombol yang terakhir ditekan atau dominan analog
+          const dominantDir = Math.abs(vx) !== Math.abs(vy)
+            ? (Math.abs(vx) > Math.abs(vy) ? hDir : vDir)
+            : (hTime >= vTime ? hDir : vDir);
           chosenAnim = `${this.playerArchetypeKey}-walk-${dominantDir}`;
         }
 
@@ -747,10 +788,11 @@ export class OfficeScene extends Phaser.Scene {
       } else {
         // Gerak Lurus (Kardinal)
         let dir: string;
-        if (vx > 0) dir = 'east';
-        else if (vx < 0) dir = 'west';
-        else if (vy > 0) dir = 'south';
-        else dir = 'north';
+        if (Math.abs(vx) > Math.abs(vy)) {
+          dir = vx > 0 ? 'east' : 'west';
+        } else {
+          dir = vy > 0 ? 'south' : 'north';
+        }
 
         this.lastDirection = dir;
         targetAngle = 0;
@@ -799,6 +841,9 @@ export class OfficeScene extends Phaser.Scene {
 
     // Check nearby interactive objects
     this.checkInteractions();
+
+    // Reset single-frame mobile action request
+    this.mobileActionRequested = false;
   }
 
   // =========================================================================
@@ -1113,15 +1158,15 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('cafe-table', 340, 320, 56, 52);
     this.addSolidChair('cafe-chair', 280, 320, 24, 20);
     this.addSolidChair('cafe-chair', 400, 320, 24, 20);
-    this.addSeat('Kursi Kafe', 280, 320, 'east', 'chair', -12, -26);
-    this.addSeat('Kursi Kafe', 400, 320, 'west', 'chair', 12, -26);
+    this.addSeat('Kursi Kafe', 280, 320, 'east', 'chair', 0, -18);
+    this.addSeat('Kursi Kafe', 400, 320, 'west', 'chair', 0, -18);
 
     this.addDecorativeProp('rug', 650, 330);
     this.addSolidProp('cafe-table', 650, 320, 56, 52);
     this.addSolidChair('cafe-chair', 590, 320, 24, 20);
     this.addSolidChair('cafe-chair', 710, 320, 24, 20);
-    this.addSeat('Kursi Kafe', 590, 320, 'east', 'chair', -12, -26);
-    this.addSeat('Kursi Kafe', 710, 320, 'west', 'chair', 12, -26);
+    this.addSeat('Kursi Kafe', 590, 320, 'east', 'chair', 0, -18);
+    this.addSeat('Kursi Kafe', 710, 320, 'west', 'chair', 0, -18);
 
     // Refreshment & Greenery (tucked against perimeter)
     this.addSolidProp('water-cooler', 960, 200, 52, 52);
@@ -1165,7 +1210,7 @@ export class OfficeScene extends Phaser.Scene {
     this.addSeat('Kursi Rapat', 470, 795, 'north', 'chair', 0, -22);
     this.addSeat('Kursi Rapat', 585, 795, 'north', 'chair', 0, -22);
     this.addSeat('Kursi Rapat', 700, 795, 'north', 'chair', 0, -22);
-    this.addSeat('Kursi Utama Rapat', 360, 720, 'east', 'chair', -12, -26);
+    this.addSeat('Kursi Utama Rapat', 360, 720, 'east', 'chair', 0, -18);
 
     // Credenza & Storage against top wall
     this.addSolidProp('bookcase', 250, 565, 75, 58);
@@ -1204,8 +1249,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-west', 745, 1075, 36, 32);
     this.addSeat('Sofa Santai', 595, 1015, 'south', 'sofa', 0, -24);
     this.addSeat('Sofa Santai', 665, 1015, 'south', 'sofa', 0, -24);
-    this.addSeat('Armchair Santai Kiri', 515, 1075, 'east', 'armchair', -12, -28);
-    this.addSeat('Armchair Santai Kanan', 745, 1075, 'west', 'armchair', 12, -28);
+    this.addSeat('Armchair Santai Kiri', 515, 1075, 'east', 'armchair', 0, -16);
+    this.addSeat('Armchair Santai Kanan', 745, 1075, 'west', 'armchair', 0, -16);
     this.addDecorativeProp('wall-art', 630, 975);
     this.addDecorativeProp('wall-clock', 790, 975);
 
@@ -1220,8 +1265,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('cafe-table', 420, 1290, 56, 52);
     this.addDecorativeProp('cafe-chair', 345, 1290);
     this.addDecorativeProp('cafe-chair', 495, 1290);
-    this.addSeat('Kursi Kafe Santai Kiri', 345, 1290, 'east', 'chair', -12, -26);
-    this.addSeat('Kursi Kafe Santai Kanan', 495, 1290, 'west', 'chair', 12, -26);
+    this.addSeat('Kursi Kafe Santai Kiri', 345, 1290, 'east', 'chair', 0, -18);
+    this.addSeat('Kursi Kafe Santai Kanan', 495, 1290, 'west', 'chair', 0, -18);
     this.addSolidProp('plant-large', 160, 1315, 50, 50);
     this.addDecorativeProp('floor-lamp', 240, 1315);
 
@@ -1231,8 +1276,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-east', 690, 1270, 36, 32);
     this.addSolidProp('armchair-west', 910, 1270, 36, 32);
     this.addSolidProp('sofa-north', 800, 1330, 104, 48);
-    this.addSeat('Armchair Santai Seberang Kiri', 690, 1270, 'east', 'armchair', -12, -28);
-    this.addSeat('Armchair Santai Seberang Kanan', 910, 1270, 'west', 'armchair', 12, -28);
+    this.addSeat('Armchair Santai Seberang Kiri', 690, 1270, 'east', 'armchair', 0, -16);
+    this.addSeat('Armchair Santai Seberang Kanan', 910, 1270, 'west', 'armchair', 0, -16);
     this.addSeat('Sofa Santai Seberang', 765, 1330, 'north', 'sofa', 0, -16);
     this.addSeat('Sofa Santai Seberang', 835, 1330, 'north', 'sofa', 0, -16);
     // Tanaman sudut pintu afk room dihapus bersih sesuai permintaan (Image 4)
@@ -1261,8 +1306,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-north', 2195, 335, 58, 52);  // Guest Chair 2
 
     // Register interactive seats in Executive Suite (Hips rest squarely in pink armchair cushion)
-    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -36);
-    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -36);
+    this.addSeat('Armchair Tamu Kiri', 2105, 335, 'north', 'armchair', 0, -30);
+    this.addSeat('Armchair Tamu Kanan', 2195, 335, 'north', 'armchair', 0, -30);
 
     // Executive Library Wall
     this.addSolidProp('bookcase', 1850, 140, 75, 58);
@@ -1313,8 +1358,8 @@ export class OfficeScene extends Phaser.Scene {
     this.addSolidProp('armchair-west', 2205, 1295, 36, 32);
     this.addSeat('Sofa Breakout Kiri', 2065, 1245, 'south', 'sofa', 0, -24);
     this.addSeat('Sofa Breakout Kanan', 2135, 1245, 'south', 'sofa', 0, -24);
-    this.addSeat('Armchair Breakout Kiri', 1995, 1295, 'east', 'armchair', -12, -28);
-    this.addSeat('Armchair Breakout Kanan', 2205, 1295, 'west', 'armchair', 12, -28);
+    this.addSeat('Armchair Breakout Kiri', 1995, 1295, 'east', 'armchair', 0, -16);
+    this.addSeat('Armchair Breakout Kanan', 2205, 1295, 'west', 'armchair', 0, -16);
     this.addDecorativeProp('floor-lamp', 2275, 1245);
     this.addSolidProp('plant-large', 1915, 1270, 52, 52);
 
@@ -1641,7 +1686,8 @@ export class OfficeScene extends Phaser.Scene {
       this.isNearTodoList = true;
       this.showPrompt(TODO_POS.x, TODO_POS.y + 65, 'Tekan [E] Buka Papan Agenda');
 
-      if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      if (Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested) {
+        this.mobileActionRequested = false;
         this.lockPlayer();
         EventBus.emit(GAME_EVENTS.OPEN_TODO_LIST);
       }
@@ -1650,9 +1696,42 @@ export class OfficeScene extends Phaser.Scene {
 
     this.isNearTodoList = false;
 
-    // 2. Proximity to Sittable Seats
+    // 2. Proximity to Espresso Machine in Pantry
+    const distToEspresso = Phaser.Math.Distance.Between(this.player.x, this.player.y, 510, 140);
+    if (distToEspresso < 75) {
+      this.showPrompt(510, 160, 'Tekan [E] Seduh Kopi Espresso');
+      if (Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested) {
+        this.mobileActionRequested = false;
+        this.spawnReactionForTarget(this.player.x, this.player.y, '☕', this.activeEmotes);
+        multiplayerService.sendReaction('☕');
+        this.showTopBanner('☕ Espresso Segar Siap!', 'Menikmati seduhan kopi hangat di pantry kantor.');
+      }
+      return;
+    }
 
-    // 3. Proximity to Sittable Seats (Chairs, Armchairs, Sofas)
+    // 3. Proximity to Water Cooler Dispenser in Pantry & Hallway
+    const distToWater = Phaser.Math.Distance.Between(this.player.x, this.player.y, 960, 230);
+    if (distToWater < 75) {
+      this.showPrompt(960, 250, 'Tekan [E] Minum Air Mineral');
+      if (Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested) {
+        this.mobileActionRequested = false;
+        this.spawnReactionForTarget(this.player.x, this.player.y, '💧', this.activeEmotes);
+        multiplayerService.sendReaction('💧');
+        this.showTopBanner('💧 Segar!', 'Menjaga hidrasi tubuh selama jam kerja produktif.');
+      }
+      return;
+    }
+
+    // 4. Proximity to Meeting Room Door Warning when Room is at Max Capacity (7/7)
+    if (this.meetingDoorBarrier && (this.meetingDoorBarrier.body as Phaser.Physics.Arcade.StaticBody)?.enable) {
+      const distToDoor = Phaser.Math.Distance.Between(this.player.x, this.player.y, 1154, 780);
+      if (distToDoor < 65 && this.player.x > 1154) {
+        this.showPrompt(1154, 780, '[RUANG PENUH] Kapasitas 7/7 Kursi Terisi');
+        return;
+      }
+    }
+
+    // 5. Proximity to Sittable Seats (Chairs, Armchairs, Sofas)
     const canSit = Date.now() - this.lastStandUpTime > 600;
 
     let nearestSeat: SeatSpot | null = null;
@@ -1682,7 +1761,8 @@ export class OfficeScene extends Phaser.Scene {
         this.promptContainer.setVisible(false);
       }
 
-      if (canSit && (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE))) {
+      if (canSit && (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyE) || this.mobileActionRequested)) {
+        this.mobileActionRequested = false;
         if (isOccupiedByOther) {
           const occupant = nearestSeat.occupiedBy?.fullName || nearestSeat.occupiedBy?.username || 'Rekan';
           this.showTopBanner(
@@ -1732,6 +1812,7 @@ export class OfficeScene extends Phaser.Scene {
   private sitDown(seat: SeatSpot): void {
     this.isSitting = true;
     this.currentSeat = seat;
+    EventBus.emit('LOCAL_PLAYER_SITTING_CHANGED', true);
     this.lastStandPos = { x: this.player.x, y: this.player.y };
     if (this.player?.body) {
       this.player.body.enable = false; // Disable body physics while seated so it doesn't push against furniture
@@ -1747,13 +1828,12 @@ export class OfficeScene extends Phaser.Scene {
     this.lastDirection = seat.facing;
 
     // Depth sorting saat duduk rapi di atas bantalan kursi
-    if (seat.facing === 'north') {
-      // Menghadap North: sandaran kursi berada di depan pinggang/kaki karakter (dari sudut pandang kamera),
+    if (seat.facing === 'north' && seat.type !== 'armchair' && seat.type !== 'sofa') {
+      // Menghadap North pada kursi kantor: sandaran kursi berada di depan pinggang/kaki karakter (dari sudut pandang kamera),
       // sehingga sandaran menutupi kaki/pinggang dan kepala/bahu menyembul rapi menghadap ke meja/pimpinan
       this.player.setDepth(seat.y + 20);
-    } else if (seat.type === 'armchair' || seat.type === 'sofa') {
-      this.player.setDepth(seat.y + 55);
     } else {
+      // Duduk di armchair, sofa, atau menghadap arah lain: render rapi di atas bantalan kursi
       this.player.setDepth(seat.y + 55);
     }
     this.showPrompt(seat.sitX, seat.sitY - 58, '[SPASI] Berdiri');
@@ -1770,23 +1850,40 @@ export class OfficeScene extends Phaser.Scene {
     // Emit seat claim to server
     multiplayerService.claimSeat(seat.id, seat.name);
 
-    // If sitting at workstation desk -> auto set status to 'work' (Bekerja) and turn on camera!
     const isWorkstation = seat.id.startsWith('desk-') || seat.name.startsWith('Meja');
+    const isMeetingChair = seat.name.includes('Rapat') || seat.name.includes('Meeting');
+    const isPantrySeat = seat.name.includes('Bar') || seat.name.includes('Kafe') || this.currentZoneId === 'room-pantry';
+    const isExecutiveSeat = seat.name.includes('Pimpinan') || seat.name.includes('Eksekutif') || seat.name.includes('Tamu') || this.currentZoneId === 'room-executive';
+    const isAfkSeat = seat.name.includes('Santai') || seat.name.includes('Sofa') || seat.name.includes('Breakout') || this.currentZoneId === 'afk-room';
+
     if (isWorkstation) {
       this.playerCurrentStatus = 'work';
       multiplayerService.sendStatus('busy');
       multiplayerService.sendPresenceStatus('work');
-      EventBus.emit('neurosim_auto_oncam', true);
+      EventBus.emit('neurosim_status_changed', 'busy');
       this.updateLocalPlayerNametag('work');
-      this.playerNametagContainer?.setVisible(false);
-    }
-
-    // If sitting on Meeting Room chair -> activate formal video conference meeting!
-    const isMeetingChair = seat.name.includes('Rapat') || seat.name.includes('Meeting');
-    if (isMeetingChair) {
+      this.playerNametagContainer?.setVisible(true);
+    } else if (isMeetingChair) {
       this.playerCurrentStatus = 'meeting';
+      multiplayerService.sendStatus('busy');
       multiplayerService.sendPresenceStatus('meeting');
       EventBus.emit(GAME_EVENTS.TOGGLE_GOOGLE_MEET, true);
+      this.updateLocalPlayerNametag('meeting');
+    } else if (isPantrySeat) {
+      this.playerCurrentStatus = 'pantry';
+      multiplayerService.sendStatus('pantry');
+      multiplayerService.sendPresenceStatus('pantry');
+      this.updateLocalPlayerNametag('pantry');
+    } else if (isExecutiveSeat) {
+      this.playerCurrentStatus = 'executive';
+      multiplayerService.sendStatus('busy');
+      multiplayerService.sendPresenceStatus('executive');
+      this.updateLocalPlayerNametag('executive');
+    } else if (isAfkSeat) {
+      this.playerCurrentStatus = 'afk';
+      multiplayerService.sendStatus('afk');
+      multiplayerService.sendPresenceStatus('afk');
+      this.updateLocalPlayerNametag('afk');
     }
 
     // Broadcast status duduk ke pemain lain di room online secara realtime
@@ -1831,6 +1928,7 @@ export class OfficeScene extends Phaser.Scene {
     this.playerCurrentStatus = 'online';
     multiplayerService.sendStatus('available');
     multiplayerService.sendPresenceStatus('online');
+    EventBus.emit('neurosim_status_changed', 'available');
     this.updateLocalPlayerNametag('online');
 
     // Exit strictly BEHIND the chair / into open walkway (prevents clipping through desks/tables!)
@@ -2299,6 +2397,13 @@ export class OfficeScene extends Phaser.Scene {
     this.drawStatusDot(record.statusDot, -halfW + 8, pillY, status);
   };
 
+  private handleRemoteMediaChanged = (packet: { socketId: string; mediaState: any }): void => {
+    if (!packet || !packet.socketId) return;
+    const record = this.remotePlayers.get(packet.socketId);
+    if (!record) return;
+    record.presence.mediaState = packet.mediaState;
+  };
+
   // =========================================================================
   // FLOATING REACTION EMOTES (LOCAL & REMOTE)
   // =========================================================================
@@ -2572,28 +2677,31 @@ export class OfficeScene extends Phaser.Scene {
 
   public buildLocalPlayerNametag(): void {
     let displayName = this.playerDisplayName;
-    if (!displayName || displayName === 'Pengguna') {
+    const savedUserStr = typeof localStorage !== 'undefined' ? (localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user')) : null;
+    const isActualAdmin = savedUserStr && (savedUserStr.includes('nandzzz') || savedUserStr.includes('super_admin'));
+
+    if (savedUserStr) {
+      try {
+        const u = JSON.parse(savedUserStr);
+        displayName = u.fullName || u.username || displayName;
+      } catch {}
+    } else {
+      // Mode Tamu / Belum Login
       if (typeof localStorage !== 'undefined') {
         try {
-          const savedUser = localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user');
-          if (savedUser) {
-            const u = JSON.parse(savedUser);
-            displayName = u.username || u.fullName || displayName;
-          }
-          if (!displayName || displayName === 'Pengguna') {
-            const savedCfg = localStorage.getItem('neurosim_character_config');
-            if (savedCfg) {
-              const c = JSON.parse(savedCfg);
-              if (c?.name && typeof c.name === 'string' && c.name.trim() && !c.name.includes('Baginda')) {
-                displayName = c.name.trim();
-              }
+          const savedCfg = localStorage.getItem('neurosim_character_config');
+          if (savedCfg) {
+            const c = JSON.parse(savedCfg);
+            if (c?.name && typeof c.name === 'string' && c.name.trim() && !c.name.toLowerCase().includes('admin') && !c.name.includes('Baginda')) {
+              displayName = c.name.trim();
             }
           }
         } catch {}
       }
     }
-    if (!displayName || !displayName.trim()) {
-      displayName = 'Pengguna';
+
+    if (!isActualAdmin && (displayName.toLowerCase().includes('administrator') || displayName.toLowerCase().includes('admin') || displayName === 'Pengguna' || !displayName.trim())) {
+      displayName = 'Tamu NeuroSim';
     }
     this.playerDisplayName = displayName;
 
@@ -2649,7 +2757,16 @@ export class OfficeScene extends Phaser.Scene {
   public updateLocalPlayerNametag(status: string): void {
     this.playerCurrentStatus = status;
     const isAfkStatus = status === 'afk';
-    const label = isAfkStatus ? `[AFK] ${this.playerDisplayName}` : this.playerDisplayName;
+    const isWorkStatus = status === 'work' || status === 'busy';
+    const isMeetingStatus = status === 'meeting';
+    let label = this.playerDisplayName;
+    if (isAfkStatus) {
+      label = `[AFK] ${this.playerDisplayName}`;
+    } else if (isWorkStatus) {
+      label = `[Sedang Bekerja] ${this.playerDisplayName}`;
+    } else if (isMeetingStatus) {
+      label = `[Rapat] ${this.playerDisplayName}`;
+    }
     this.playerNameText.setText(label);
 
     const paddingX = 8;
@@ -2661,11 +2778,12 @@ export class OfficeScene extends Phaser.Scene {
 
     this.playerNameBg.clear();
     this.playerNameBg.fillStyle(0x0f172a, 0.9);
-    this.playerNameBg.lineStyle(1.5, isAfkStatus ? 0xf59e0b : 0x10b981, 0.9);
+    const strokeColor = isAfkStatus ? 0xf59e0b : isWorkStatus ? 0xe0b65d : 0x10b981;
+    this.playerNameBg.lineStyle(1.5, strokeColor, 0.9);
     this.playerNameBg.fillRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
     this.playerNameBg.strokeRoundedRect(-halfW, pillY - pillH / 2, pillW, pillH, 5);
 
-    this.drawStatusDot(this.playerStatusDot, -halfW + 8, pillY, isAfkStatus ? 'away' : 'online');
+    this.drawStatusDot(this.playerStatusDot, -halfW + 8, pillY, isAfkStatus ? 'away' : isWorkStatus ? 'busy' : 'online');
     this.playerNameText.setPosition(-halfW + 16, pillY);
   }
 
@@ -2794,7 +2912,7 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     this.showTopBanner(
-      'Status: AFK (Inaktif 30 Menit)',
+      'Status: AFK (Inaktif 15 Menit)',
       'Karakter Anda berjalan otomatis ke AFK Room. Gerakkan mouse atau tombol keyboard untuk kembali aktif.'
     );
 
@@ -2934,6 +3052,9 @@ export class OfficeScene extends Phaser.Scene {
     EventBus.off(GAME_EVENTS.SEAT_VACATED, this.handleSeatVacated, this);
     EventBus.off(GAME_EVENTS.SEATS_STATE, this.handleSeatsState, this);
     EventBus.off(GAME_EVENTS.SEAT_DENIED, this.handleSeatDenied, this);
+    EventBus.off('ANALOG_JOYSTICK_MOVE', this.handleAnalogJoystickMove, this);
+    EventBus.off('MOBILE_INTERACT', this.handleMobileInteract, this);
+    EventBus.off(GAME_EVENTS.REMOTE_MEDIA_CHANGED, this.handleRemoteMediaChanged, this);
 
     if (typeof window !== 'undefined') {
       window.removeEventListener('neurosim_user_profile_updated', this.handleUserProfileUpdated);
@@ -3049,7 +3170,13 @@ export class OfficeScene extends Phaser.Scene {
     if (!this.player) return;
     const config = payload?.config || payload;
     if (config?.name && typeof config.name === 'string' && config.name.trim()) {
-      this.setLocalPlayerName(config.name.trim());
+      const savedUserStr = typeof localStorage !== 'undefined' ? (localStorage.getItem('neurosim_current_user') || localStorage.getItem('neurosim_user')) : null;
+      const isActualAdmin = savedUserStr && (savedUserStr.includes('nandzzz') || savedUserStr.includes('super_admin'));
+      let candidate = config.name.trim();
+      if (!isActualAdmin && (candidate.toLowerCase().includes('administrator') || candidate.toLowerCase().includes('admin'))) {
+        candidate = 'Tamu NeuroSim';
+      }
+      this.setLocalPlayerName(candidate);
     }
 
     const isCustom = config?.archetype === 'custom';

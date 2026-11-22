@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, ClipboardList, LayoutDashboard, Server, ShieldCheck } from 'lucide-react';
+import { User, ClipboardList, LayoutDashboard, Server, ShieldCheck, Bot, Key } from 'lucide-react';
 import { A11yControls, TextScale } from '../ui/A11yControls';
 import { UserProfile } from '../modals/AuthModal';
 import { OfficeRoom } from '../../types/room';
@@ -26,6 +26,11 @@ interface Props {
   currentLobbyName?: string;
   onOpenLobbySelector?: () => void;
   onOpenAdminBilling?: () => void;
+  onNavigateAdmin?: () => void;
+  onNavigateLeader?: () => void;
+  onOpenAiGuide?: () => void;
+  onNavigateEnterOffice?: () => void;
+  onOpenAdminLogin?: () => void;
 }
 
 const getUserDisplayName = (user: UserProfile | null): string => {
@@ -58,7 +63,28 @@ export const Header: React.FC<Props> = ({
   currentLobbyName,
   onOpenLobbySelector,
   onOpenAdminBilling,
+  onNavigateAdmin,
+  onNavigateLeader,
+  onOpenAiGuide,
+  onNavigateEnterOffice,
+  onOpenAdminLogin,
 }) => {
+  const isSuperAdmin = currentUser?.username?.toLowerCase() === 'nandzzz' || (currentUser as any)?.roleSlug === 'super_admin';
+  const isLeader = currentUser?.role?.toLowerCase().includes('leader') || currentUser?.role?.toLowerCase().includes('manager') || (currentUser as any)?.roleSlug === 'manager';
+  const [logoClicks, setLogoClicks] = React.useState(0);
+  const handleLogoClick = () => {
+    setLogoClicks((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        if (onOpenAdminLogin) onOpenAdminLogin();
+        return 0;
+      }
+      return next;
+    });
+    setTimeout(() => {
+      setLogoClicks(0);
+    }, 2500);
+  };
   const roomName = currentRoom?.name || 'Kantor Pusat NeuroSim Pro';
   const roomCode = currentRoom?.code || 'NEURO-HQ-88';
   const displayName = getUserDisplayName(currentUser);
@@ -68,7 +94,7 @@ export const Header: React.FC<Props> = ({
       {/* 1. Left Product Brand, Dashboard Shortcut, & Active Online Room Pill */}
       <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded overflow-hidden bg-cream border border-[#355c5a]/30 flex-shrink-0 shadow-2xs">
+          <div onClick={handleLogoClick} title="NeuroSim Pro" className="w-7 h-7 sm:w-8 sm:h-8 rounded overflow-hidden bg-cream border border-[#355c5a]/30 flex-shrink-0 shadow-2xs cursor-pointer select-none">
             <img
               src="/logo.webp"
               alt="Logo NeuroSim Pro"
@@ -119,16 +145,28 @@ export const Header: React.FC<Props> = ({
       {/* 2. Middle: Admin Billing & Agenda Trigger */}
       <div className="flex items-center gap-1.5 sm:gap-2">
 
-        {/* Admin Billing Modal Trigger */}
-        {onOpenAdminBilling && (
+        {/* Admin Dashboard Route Trigger (/x90x9admin) */}
+        {isSuperAdmin && onNavigateAdmin && (
           <button
             type="button"
-            onClick={onOpenAdminBilling}
-            title="Kelola 5 Server Bracket, Akses Perusahaan & Billing Key"
+            onClick={onNavigateAdmin}
+            title="Dashboard Administrator (/x90x9admin)"
             className="px-2.5 py-1 text-xs font-semibold rounded border border-amber-300 bg-amber-50/90 hover:bg-amber-100 text-amber-900 transition-colors flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-            <span className="hidden sm:inline font-bold">Admin Billing</span>
+            <span className="hidden sm:inline font-bold">Admin /x90x9admin</span>
+          </button>
+        )}
+
+        {/* Leader Dashboard Route Trigger (/leader) */}
+        {isLeader && onNavigateLeader && (
+          <button
+            type="button"
+            onClick={onNavigateLeader}
+            title="Dashboard Leader / Bos (/leader)"
+            className="px-2.5 py-1 text-xs font-semibold rounded border border-teal/40 bg-teal/10 hover:bg-teal/20 text-teal transition-colors flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
+          >
+            <span className="hidden sm:inline font-bold">Dashboard Leader</span>
           </button>
         )}
 

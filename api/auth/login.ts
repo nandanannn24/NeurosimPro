@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDbPool } from '../../src/lib/db';
+import { signJwt } from '../../src/lib/jwt';
 
 export interface LoginRequestBody {
   username?: string;
@@ -50,17 +51,53 @@ export const ENTERPRISE_DEMO_ACCOUNTS: Record<string, { pass: string; user: User
       textScale: 'normal',
     },
   },
+  leader: {
+    pass: 'leader123',
+    user: {
+      id: 2,
+      username: 'leader',
+      email: 'leader@neurosimpro.com',
+      fullName: 'Operations Lead (Bos Ruangan)',
+      role: 'Bos / Leader Divisi',
+      roleSlug: 'manager',
+      department: 'Divisi Kolaborasi & Delivery',
+      title: 'Engineering Manager & Leader',
+      avatar: '/assets/characters/resident/standing/south.png',
+      orgId: 1,
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
   manager: {
     pass: 'manager123',
     user: {
       id: 2,
       username: 'manager',
       email: 'manager@neurosimpro.com',
-      fullName: 'Operations Lead',
-      role: 'Manager / Team Leader',
+      fullName: 'Operations Lead (Bos Ruangan)',
+      role: 'Bos / Leader Divisi',
       roleSlug: 'manager',
       department: 'Divisi Kolaborasi & Delivery',
-      title: 'Engineering Manager',
+      title: 'Engineering Manager & Leader',
+      avatar: '/assets/characters/resident/standing/south.png',
+      orgId: 1,
+      reduceMotion: false,
+      highContrast: false,
+      textScale: 'normal',
+    },
+  },
+  humas: {
+    pass: 'humas123',
+    user: {
+      id: 3,
+      username: 'humas',
+      email: 'humas@inovasidigital.co.id',
+      fullName: 'Rina Wijaya, S.I.Kom',
+      role: 'Humas / Corporate PIC',
+      roleSlug: 'org_admin',
+      department: 'Hubungan Masyarakat & Eksternal',
+      title: 'Head of Public Relations & Liaison',
       avatar: '/assets/characters/resident/standing/south.png',
       orgId: 1,
       reduceMotion: false,
@@ -71,11 +108,11 @@ export const ENTERPRISE_DEMO_ACCOUNTS: Record<string, { pass: string; user: User
   employee: {
     pass: 'employee123',
     user: {
-      id: 3,
+      id: 4,
       username: 'employee',
       email: 'employee@neurosimpro.com',
-      fullName: 'Staff Pengembang Pro',
-      role: 'Employee / Member',
+      fullName: 'Staff Pengembang Internal',
+      role: 'Pengguna Internal',
       roleSlug: 'employee',
       department: 'Divisi Antarmuka & Frontend',
       title: 'Frontend Engineer',
@@ -89,11 +126,11 @@ export const ENTERPRISE_DEMO_ACCOUNTS: Record<string, { pass: string; user: User
   guest: {
     pass: 'guest123',
     user: {
-      id: 4,
+      id: 5,
       username: 'guest',
       email: 'guest@neurosimpro.com',
-      fullName: 'Tamu Kolaborasi',
-      role: 'Guest / External Attendee',
+      fullName: 'Tamu Eksternal / Pengunjung',
+      role: 'Tamu (Guest)',
       roleSlug: 'guest',
       department: 'External Stakeholder',
       title: 'Guest Collaborator',
@@ -145,24 +182,39 @@ export async function processLogin(body: LoginRequestBody): Promise<LoginRespons
             // history fetch optional
           }
 
+          const userData: UserSessionData = {
+            id: u.id,
+            username: u.username,
+            email: u.email || `${u.username}@neurosimpro.com`,
+            fullName: u.full_name,
+            role: u.role_name || 'Employee / Member',
+            roleSlug: (u.role_slug || 'employee') as any,
+            department: u.department || 'Product & Engineering',
+            title: u.title || 'Staff Pengembang',
+            avatar: u.avatar || '/assets/characters/resident/standing/south.png',
+            orgId: u.org_id || 1,
+            reduceMotion: Boolean(u.reduce_motion),
+            highContrast: Boolean(u.high_contrast),
+            textScale: u.text_scale || 'normal',
+          };
+
+          const token = signJwt({
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            fullName: userData.fullName,
+            role: userData.role,
+            roleSlug: userData.roleSlug,
+            department: userData.department,
+            title: userData.title,
+            orgId: userData.orgId,
+          });
+
           return {
             success: true,
             message: 'Autentikasi berhasil melalui database MySQL.',
-            user: {
-              id: u.id,
-              username: u.username,
-              email: u.email || `${u.username}@neurosimpro.com`,
-              fullName: u.full_name,
-              role: u.role_name || 'Employee / Member',
-              roleSlug: (u.role_slug || 'employee') as any,
-              department: u.department || 'Product & Engineering',
-              title: u.title || 'Staff Pengembang',
-              avatar: u.avatar || '/assets/characters/resident/standing/south.png',
-              orgId: u.org_id || 1,
-              reduceMotion: Boolean(u.reduce_motion),
-              highContrast: Boolean(u.high_contrast),
-              textScale: u.text_scale || 'normal',
-            },
+            token,
+            user: userData,
             history,
           };
         }
@@ -175,9 +227,22 @@ export async function processLogin(body: LoginRequestBody): Promise<LoginRespons
   // Fallback Enterprise Demo Accounts
   const demo = ENTERPRISE_DEMO_ACCOUNTS[identifier];
   if (demo && (password === demo.pass || password === 'admin123' || password === 'password123')) {
+    const token = signJwt({
+      id: demo.user.id,
+      username: demo.user.username,
+      email: demo.user.email,
+      fullName: demo.user.fullName,
+      role: demo.user.role,
+      roleSlug: demo.user.roleSlug,
+      department: demo.user.department,
+      title: demo.user.title,
+      orgId: demo.user.orgId,
+    });
+
     return {
       success: true,
       message: 'Login berhasil dengan sesi enterprise!',
+      token,
       user: demo.user,
       history: [
         {

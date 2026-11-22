@@ -21,6 +21,17 @@ import { DEFAULT_ROOMS, DEFAULT_CURRENT_ROOM } from './config/defaultRooms';
 import { LandingView } from './components/views/LandingView';
 import { DashboardView, OfficeRoom as DashboardRoom, OFFICE_ROOMS } from './components/views/DashboardView';
 import { RoomLobbyView } from './components/views/RoomLobbyView';
+import { AdminDashboardView } from './components/views/AdminDashboardView';
+import { LeaderDashboardView } from './components/views/LeaderDashboardView';
+import { GuestLobbyView } from './components/views/GuestLobbyView';
+import { EnterOfficeView } from './components/views/EnterOfficeView';
+import { NeuroAssistantModal } from './components/modals/NeuroAssistantModal';
+import { AdminComplexLoginModal } from './components/auth/AdminComplexLoginModal';
+import { CompanyAccessCode, CompanyRecord } from './types/lobby';
+import { Bot, ArrowRight } from 'lucide-react';
+import { TopCameraBar } from './components/gather/TopCameraBar';
+import { MinimapWidget } from './components/gather/MinimapWidget';
+import { MobileVirtualControls } from './components/gather/MobileVirtualControls';
 
 // Virtual office workspace components
 import { GatherDock, UserStatus } from './components/gather/GatherDock';
@@ -36,13 +47,13 @@ import { ScreenShareWidget } from './components/gather/ScreenShareWidget';
 import { multiplayerService } from './services/multiplayer.service';
 import { PlayerPresence, PlayerChatPacket } from './types/multiplayer';
 
-export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation';
+export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation' | 'admin' | 'leader' | 'guest-lobby' | 'enter-office';
 
 
 // Obrolan kantor dimulai dalam kondisi kosong bersih (dinamis)
 const getInitialChatMessages = (): OfficeChatMessage[] => [];
 
-const getUserDisplayName = (user: UserProfile | null, fallback = 'Pengguna'): string => {
+const getUserDisplayName = (user: UserProfile | null, fallback = 'Tamu NeuroSim'): string => {
   if (!user) return fallback;
   if (user.fullName && typeof user.fullName === 'string' && user.fullName.trim().length > 0) {
     const first = user.fullName.trim().split(' ')[0];
@@ -52,14 +63,228 @@ const getUserDisplayName = (user: UserProfile | null, fallback = 'Pengguna'): st
 };
 
 export const App: React.FC = () => {
-  // Top-Level User Flow Navigation: landing -> dashboard -> room-lobby -> simulation
-  const [currentView, setCurrentView] = useState<AppView>('dashboard');
+  // Top-Level User Flow Navigation: landing -> dashboard -> room-lobby -> simulation | admin | leader | guest-lobby
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('/enter-office') || path.includes('/masuk-kantor')) return 'enter-office';
+      if (path.includes('/public-lobby') || path.includes('/lobi-publik')) return 'simulation';
+      if (path.includes('/x90x9admin')) return 'admin';
+      if (path.includes('/leader')) return 'leader';
+      if (path.includes('/guest-lobby') || path.includes('/tamu')) return 'guest-lobby';
+      if (path.includes('/simulation')) return 'simulation';
+      if (path.includes('/dashboard')) return 'dashboard';
+
+      // Cek apakah ada sesi login aktif & token JWT yang tersimpan
+      try {
+        const token = localStorage.getItem('neurosim_auth_token');
+        const user = localStorage.getItem('neurosim_current_user');
+        if (token && user) {
+          return 'dashboard';
+        }
+      } catch {
+        // Abaikan jika localStorage tidak dapat diakses
+      }
+    }
+    // Default mutlak halaman awal: START / LANDING PAGE (2 Mode)
+    return 'landing';
+  });
+
+  const navigateTo = useCallback((view: AppView, path?: string) => {
+    setCurrentView(view);
+    if (typeof window !== 'undefined' && path) {
+      window.history.pushState({}, '', path);
+    }
+  }, []);
+
+  // Sync URL Path on initial load and browser back/forward buttons
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const syncFromLocation = () => {
+        const path = window.location.pathname.toLowerCase();
+        if (path.includes('/enter-office') || path.includes('/masuk-kantor')) {
+          setCurrentView('enter-office');
+        } else if (path.includes('/public-lobby') || path.includes('/lobi-publik')) {
+          setCurrentView('simulation');
+          setCurrentLobbyId('LOBBY-PUBLIC');
+          setCurrentLobbyName('Public Lobby - Ruang Eksplorasi Tamu');
+        } else if (path.includes('/x90x9admin')) {
+          setCurrentView('admin');
+        } else if (path.includes('/leader')) {
+          setCurrentView('leader');
+        } else if (path.includes('/guest-lobby') || path.includes('/tamu')) {
+          setCurrentView('guest-lobby');
+        } else if (path.includes('/simulation')) {
+          setCurrentView('simulation');
+        } else {
+          const params = new URLSearchParams(window.location.search);
+          const v = params.get('view');
+          if (v === 'admin') setCurrentView('admin');
+          else if (v === 'leader') setCurrentView('leader');
+          else if (v === 'guest-lobby') setCurrentView('guest-lobby');
+          else if (v === 'dashboard') setCurrentView('dashboard');
+          else {
+            try {
+              const token = localStorage.getItem('neurosim_auth_token');
+              const user = localStorage.getItem('neurosim_current_user');
+              if (token && user) {
+                setCurrentView('dashboard');
+              } else {
+                setCurrentView('landing');
+              }
+            } catch {
+              setCurrentView('landing');
+            }
+          }
+        }
+      };
+
+      syncFromLocation();
+      window.addEventListener('popstate', syncFromLocation);
+      return () => window.removeEventListener('popstate', syncFromLocation);
+    }
+  }, []);
+
+  // Verifikasi JWT token & refresh profil pengguna saat aplikasi pertama kali dibuka
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const token = localStorage.getItem('neurosim_auth_token');
+      if (!token) return;
+
+      fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ token }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.user) {
+            setCurrentUser(data.user);
+            localStorage.setItem('neurosim_current_user', JSON.stringify(data.user));
+          } else {
+            console.warn('[JWT Verify] Token kedaluwarsa atau tidak sah:', data.message);
+            localStorage.removeItem('neurosim_auth_token');
+            localStorage.removeItem('neurosim_current_user');
+            setCurrentUser(null);
+            if (window.location.pathname === '/' || window.location.pathname === '/dashboard') {
+              setCurrentView('landing');
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('[JWT Verify Error]:', err);
+        });
+    } catch {
+      // LocalStorage access exception
+    }
+  }, []);
+
+  // Listen to status changes from Game Engine (e.g. Workstation sit -> Sedang Bekerja)
+  useEffect(() => {
+    const handleStatusChanged = (st: UserStatus) => {
+      setUserStatus(st);
+    };
+    EventBus.on('neurosim_status_changed', handleStatusChanged);
+    return () => {
+      EventBus.off('neurosim_status_changed', handleStatusChanged);
+    };
+  }, []);
+
+  // User Account & Session (MySQL Synced)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('neurosim_current_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.fullName === 'string' && parsed.fullName.includes('Baginda')) {
+          parsed.fullName = 'Pengguna NeuroSim';
+          parsed.username = 'pengguna';
+          localStorage.setItem('neurosim_current_user', JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Character Customizer State (Universal LPC Format)
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [characterConfig, setCharacterConfig] = useState<CharacterCustomization>(() => {
+    try {
+      const saved = localStorage.getItem('neurosim_character_config');
+      const token = localStorage.getItem('neurosim_auth_token');
+      const userStr = localStorage.getItem('neurosim_current_user');
+      const isActualAdmin = token && userStr && (userStr.includes('nandzzz') || userStr.includes('super_admin'));
+
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.name === 'string') {
+          if (!isActualAdmin && (parsed.name.toLowerCase().includes('admin') || parsed.name.toLowerCase().includes('administrator') || parsed.name.includes('Baginda') || !parsed.name.trim())) {
+            parsed.name = 'Tamu NeuroSim';
+            localStorage.setItem('neurosim_character_config', JSON.stringify(parsed));
+          }
+        }
+        return parsed;
+      }
+      return { ...DEFAULT_CHARACTER, name: 'Tamu NeuroSim' };
+    } catch {
+      return { ...DEFAULT_CHARACTER, name: 'Tamu NeuroSim' };
+    }
+  });
 
   const [selectedRoom, setSelectedRoom] = useState<DashboardRoom>(OFFICE_ROOMS[0]);
   const [mode, setMode] = useState<'2d' | 'list'>('2d');
   const [isTodoListOpen, setIsTodoListOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [isAiGuideOpen, setIsAiGuideOpen] = useState(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const [companyAccess, setCompanyAccess] = useState<{ accessCode?: CompanyAccessCode; company?: CompanyRecord } | null>(() => {
+    try {
+      const saved = localStorage.getItem('neurosim_company_access');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleNavigatePublicLobby = useCallback(() => {
+    setCurrentLobbyId('LOBBY-PUBLIC');
+    setCurrentLobbyName('Public Lobby - Ruang Eksplorasi Tamu');
+    if (!currentUser) {
+      setCharacterConfig((prev) => {
+        if (prev.name.toLowerCase().includes('admin')) {
+          const reset = { ...prev, name: 'Tamu NeuroSim' };
+          try { localStorage.setItem('neurosim_character_config', JSON.stringify(reset)); } catch {}
+          return reset;
+        }
+        return prev;
+      });
+    }
+    setCurrentView('simulation');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/public-lobby');
+    }
+    setTimeout(() => {
+      EventBus.emit(GAME_EVENTS.TELEPORT_TO_ROOM, { x: 1375, y: 1260 });
+      EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', currentUser ? getUserDisplayName(currentUser) : 'Tamu NeuroSim');
+    }, 150);
+  }, [currentUser]);
+
+  const handleNavigateEnterOffice = useCallback(() => {
+    setCurrentView('enter-office');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/enter-office');
+    }
+  }, []);
+
+
 
   // Video Conference & Breakout Room State
   const [isMeetingLobbyOpen, setIsMeetingLobbyOpen] = useState(false);
@@ -69,6 +294,12 @@ export const App: React.FC = () => {
   // 5 Online Server Brackets & Enterprise Billing Session State
   const [isAdminBillingOpen, setIsAdminBillingOpen] = useState(false);
   const [isLobbySelectorOpen, setIsLobbySelectorOpen] = useState(false);
+  const [authRestrictionNotice, setAuthRestrictionNotice] = useState<string | null>(null);
+
+  const handleRequireAuth = useCallback((notice: string) => {
+    setAuthRestrictionNotice(notice);
+    setIsAuthOpen(true);
+  }, []);
   const [currentLobbyId, setCurrentLobbyId] = useState('LOBBY-01');
   const [currentLobbyName, setCurrentLobbyName] = useState('Kantor Pusat NeuroSim');
 
@@ -108,24 +339,7 @@ export const App: React.FC = () => {
     return DEFAULT_CURRENT_ROOM;
   });
 
-  // User Account & Session (MySQL Synced)
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('neurosim_current_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.fullName === 'string' && parsed.fullName.includes('Baginda')) {
-          parsed.fullName = 'Pengguna NeuroSim';
-          parsed.username = 'pengguna';
-          localStorage.setItem('neurosim_current_user', JSON.stringify(parsed));
-        }
-        return parsed;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
+
   const [userHistory, setUserHistory] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('neurosim_user_history');
@@ -134,6 +348,61 @@ export const App: React.FC = () => {
       return [];
     }
   });
+
+  const handleEnterCompanyOffice = useCallback(
+    (data: {
+      accessCode: CompanyAccessCode;
+      company: CompanyRecord;
+      lobby: LobbyBracket;
+    }) => {
+      if (!currentUser) {
+        setIsAuthOpen(true);
+        return;
+      }
+
+      setCompanyAccess({
+        accessCode: data.accessCode,
+        company: data.company,
+      });
+      try {
+        localStorage.setItem(
+          'neurosim_company_access',
+          JSON.stringify({
+            accessCode: data.accessCode,
+            company: data.company,
+          })
+        );
+      } catch (e) {
+        console.warn('Failed to persist company access:', e);
+      }
+
+      if (currentUser) {
+        const updatedUser: UserProfile = {
+          ...currentUser,
+          role: data.accessCode.role as any,
+        };
+        setCurrentUser(updatedUser);
+        try {
+          localStorage.setItem('neurosim_current_user', JSON.stringify(updatedUser));
+        } catch (e) {
+          console.warn('Failed to persist updated user:', e);
+        }
+      }
+
+      setCurrentLobbyId(data.lobby.id);
+      setCurrentLobbyName(data.lobby.name);
+      setCurrentView('simulation');
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', `/office/${data.lobby.id}`);
+      }
+
+      setTimeout(() => {
+        EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+        EventBus.emit(GAME_EVENTS.TELEPORT_TO_ROOM, { x: 1375, y: 1260 });
+      }, 150);
+    },
+    [currentUser]
+  );
 
   const [tasks, setTasks] = useState<OfficeTask[]>(() => {
     const saved = localStorage.getItem('neurosim_tasks');
@@ -220,24 +489,7 @@ export const App: React.FC = () => {
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [onlineRemotePlayers, setOnlineRemotePlayers] = useState<PlayerPresence[]>([]);
 
-  // Character Customizer State (Universal LPC Format)
-  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
-  const [characterConfig, setCharacterConfig] = useState<CharacterCustomization>(() => {
-    try {
-      const saved = localStorage.getItem('neurosim_character_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.name === 'string' && (parsed.name.includes('Baginda') || !parsed.name.trim())) {
-          parsed.name = 'Karyawan NeuroSim';
-          localStorage.setItem('neurosim_character_config', JSON.stringify(parsed));
-        }
-        return parsed;
-      }
-      return DEFAULT_CHARACTER;
-    } catch {
-      return DEFAULT_CHARACTER;
-    }
-  });
+
 
   const dynamicParticipants: Participant[] = React.useMemo(() => {
     const localPart: Participant = {
@@ -333,12 +585,20 @@ export const App: React.FC = () => {
   }, [currentUser]);
 
   const handleSceneReady = React.useCallback(() => {
-    const activeName = currentUser?.username || currentUser?.fullName || getUserDisplayName(currentUser);
+    const isGuest = !currentUser || currentLobbyId === 'LOBBY-PUBLIC';
+    let activeName = isGuest
+      ? (characterConfig.name && !characterConfig.name.toLowerCase().includes('admin') ? characterConfig.name : 'Tamu NeuroSim')
+      : (currentUser?.fullName || currentUser?.username || getUserDisplayName(currentUser));
+
     EventBus.emit('LOCAL_PLAYER_NAME_UPDATE', activeName);
     if (characterConfig) {
-      EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, characterConfig);
+      const cleanConfig = {
+        ...characterConfig,
+        name: activeName,
+      };
+      EventBus.emit(GAME_EVENTS.UPDATE_PLAYER_CHARACTER, cleanConfig);
     }
-  }, [currentUser, characterConfig]);
+  }, [currentUser, currentLobbyId, characterConfig]);
 
   // Auto On-Cam & Formal Meeting Event Listeners from Game Engine
   useEffect(() => {
@@ -477,17 +737,25 @@ export const App: React.FC = () => {
   // Gabung ke room multiplayer online saat berada di tampilan simulasi
   useEffect(() => {
     if (currentView === 'simulation') {
-      const activeUsername = currentUser?.username || 'Pengunjung';
+      const isGuest = !currentUser || currentLobbyId === 'LOBBY-PUBLIC';
+      const activeUsername = isGuest
+        ? (characterConfig.name && !characterConfig.name.toLowerCase().includes('admin') ? characterConfig.name : 'Tamu NeuroSim')
+        : (currentUser?.username || 'Pengguna');
+      const activeFullName = isGuest ? activeUsername : (currentUser?.fullName || activeUsername);
+
       multiplayerService.joinRoom({
         roomId: currentLobbyId,
         user: {
           id: currentUser?.id,
           username: activeUsername,
-          fullName: activeUsername,
-          role: currentUser?.role || 'Staff Tim',
+          fullName: activeFullName,
+          role: isGuest ? 'Tamu (Guest)' : (currentUser?.role || 'Staff Tim'),
           avatar: currentUser?.avatar || `/assets/characters/${characterConfig.archetype || 'resident'}/standing/south.png`,
         },
-        characterConfig,
+        characterConfig: {
+          ...characterConfig,
+          name: activeUsername,
+        },
         spawnCoords: { x: 1375, y: 1260 },
       });
     } else {
@@ -560,12 +828,27 @@ export const App: React.FC = () => {
 
   const handleCloseScreenShare = useCallback(() => {
     setIsScreenSharing(false);
+    multiplayerService.sendMediaState({ isScreenSharing: false });
+    EventBus.emit(GAME_EVENTS.SCREEN_SHARE_CHANGED, { isScreenSharing: false });
+    EventBus.emit(GAME_EVENTS.RESUME_INPUT);
   }, []);
 
   const handleToggleScreenShare = useCallback(() => {
-    EventBus.emit(GAME_EVENTS.PAUSE_INPUT);
-    setIsScreenSharing((s) => !s);
-  }, []);
+    setIsScreenSharing((s) => {
+      const next = !s;
+      multiplayerService.sendMediaState({ isScreenSharing: next });
+      EventBus.emit(GAME_EVENTS.SCREEN_SHARE_CHANGED, {
+        isScreenSharing: next,
+        sharerName: currentUser?.fullName || getUserDisplayName(currentUser),
+      });
+      if (next) {
+        EventBus.emit(GAME_EVENTS.PAUSE_INPUT);
+      } else {
+        EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+      }
+      return next;
+    });
+  }, [currentUser]);
 
   // Online Multiplayer Room Management Handlers
   const handleJoinRoom = useCallback(
@@ -645,25 +928,63 @@ export const App: React.FC = () => {
     [currentUser]
   );
 
-  const handleLoginSuccess = (user: UserProfile, history?: any[]) => {
+  const handleLoginSuccess = (user: UserProfile, history?: any[], token?: string) => {
     setCurrentUser(user);
     const hist = history || [];
     setUserHistory(hist);
-    localStorage.setItem('neurosim_current_user', JSON.stringify(user));
-    localStorage.setItem('neurosim_user_history', JSON.stringify(hist));
-    if (currentView === 'landing') {
-      setCurrentView('dashboard');
+    try {
+      localStorage.setItem('neurosim_current_user', JSON.stringify(user));
+      localStorage.setItem('neurosim_user_history', JSON.stringify(hist));
+      if (token) {
+        localStorage.setItem('neurosim_auth_token', token);
+      }
+    } catch (e) {
+      console.warn('Storage sync error:', e);
     }
+    // Setelah autentikasi berhasil, selalu arahkan pengguna ke Dashboard Workspace!
+    navigateTo('dashboard', '/dashboard');
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setUserHistory([]);
-    localStorage.removeItem('neurosim_current_user');
-    localStorage.removeItem('neurosim_user_history');
+    try {
+      localStorage.removeItem('neurosim_current_user');
+      localStorage.removeItem('neurosim_user_history');
+      localStorage.removeItem('neurosim_auth_token');
+      localStorage.removeItem('neurosim_company_access');
+      setCharacterConfig((prev) => {
+        const reset = { ...prev, name: 'Tamu NeuroSim' };
+        localStorage.setItem('neurosim_character_config', JSON.stringify(reset));
+        return reset;
+      });
+    } catch (e) {
+      console.warn('Storage clear error:', e);
+    }
     setIsAuthOpen(false);
-    setCurrentView('landing');
+    navigateTo('landing', '/');
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Secret key combinations: Ctrl + Shift + A or Alt + Shift + K
+      if (
+        (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) ||
+        (e.altKey && e.shiftKey && (e.key === 'K' || e.key === 'k'))
+      ) {
+        e.preventDefault();
+        setIsAdminLoginOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  const isSuperAdmin = useMemo(() => {
+    return (
+      currentUser?.username?.toLowerCase() === 'nandzzz' ||
+      (currentUser as any)?.roleSlug === 'super_admin'
+    );
+  }, [currentUser]);
 
   const completedCount = tasks.filter((t) => t.completed).length;
 
@@ -674,15 +995,99 @@ export const App: React.FC = () => {
       } ${highContrast ? 'contrast-125' : ''}`}
     >
       {/* ------------------------------------------------------------------- */}
-      {/* 1. SCREEN VIEW: UNIFIED DASHBOARD WORKSPACE PORTAL                   */}
+      {/* 0. SPECIALIZED DASHBOARDS & ACCESS VIEWS (Admin, Leader, Guest)     */}
       {/* ------------------------------------------------------------------- */}
-      {(currentView === 'dashboard' || currentView === 'landing') && (
+      {currentView === 'admin' && (
+        isSuperAdmin ? (
+          <AdminDashboardView
+            currentUser={currentUser}
+            onNavigateHome={() => navigateTo('dashboard', '/')}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onEnterRoom={(bracketId) => {
+              setCurrentLobbyId(bracketId);
+              navigateTo('simulation', '/simulation');
+              EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+            }}
+          />
+        ) : (
+          <AdminComplexLoginModal
+            isOpen={true}
+            isDirectRoute={true}
+            onClose={() => navigateTo('dashboard', '/')}
+            onSuccess={(adminUser) => {
+              setCurrentUser(adminUser);
+              EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+            }}
+          />
+        )
+      )}
+
+      {currentView === 'leader' && (
+        <LeaderDashboardView
+          currentUser={currentUser}
+          onNavigateHome={() => navigateTo('dashboard', '/')}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onEnterRoom={(bracketId) => {
+            setCurrentLobbyId(bracketId);
+            navigateTo('simulation', '/simulation');
+            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+          }}
+          onStartVideoConference={handleOpenVideoConference}
+        />
+      )}
+
+      {currentView === 'guest-lobby' && (
+        <GuestLobbyView
+          currentUser={currentUser}
+          onNavigateHome={() => navigateTo('dashboard', '/')}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onEnterSimulationWithKey={(lobbyId) => {
+            setCurrentLobbyId(lobbyId);
+            navigateTo('simulation', '/simulation');
+            EventBus.emit(GAME_EVENTS.RESUME_INPUT);
+          }}
+        />
+      )}
+
+      {/* 3B. SCREEN VIEW: ENTER COMPANY OFFICE (ROLE-BASED UNIQUE CODE ACCESS) */}
+      {currentView === 'enter-office' && (
+        <EnterOfficeView
+          currentUser={currentUser}
+          onNavigateHome={() => navigateTo('dashboard', '/')}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onExplorePublicLobby={handleNavigatePublicLobby}
+          onEnterCompanyOffice={handleEnterCompanyOffice}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------- */}
+      {/* 1. SCREEN VIEW: START / LANDING PAGE (2 MODES: TAMU VS MASUK AKUN)  */}
+      {/* ------------------------------------------------------------------- */}
+      {currentView === 'landing' && (
+        <LandingView
+          currentUser={currentUser}
+          characterConfig={characterConfig}
+          onEnterDashboard={() => navigateTo('dashboard', '/dashboard')}
+          onEnterSimulation={handleNavigatePublicLobby}
+          onOpenCustomizer={() => setIsCustomizerOpen(true)}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------- */}
+      {/* 2. SCREEN VIEW: UNIFIED DASHBOARD WORKSPACE PORTAL                   */}
+      {/* ------------------------------------------------------------------- */}
+      {currentView === 'dashboard' && (
         <DashboardView
           currentUser={currentUser}
           characterConfig={characterConfig}
           tasks={tasks}
           userHistory={userHistory}
           currentZoneId={currentZoneId}
+          onBackToLanding={() => navigateTo('landing', '/')}
           onSelectRoom={(room) => {
             setSelectedRoom(room);
             setCurrentView('room-lobby');
@@ -712,6 +1117,13 @@ export const App: React.FC = () => {
           onOpenAuth={() => setIsAuthOpen(true)}
           onLogout={handleLogout}
           onOpenAdminBilling={() => setIsAdminBillingOpen(true)}
+          onNavigateAdmin={() => navigateTo('admin', '/x90x9admin')}
+          onNavigateLeader={() => navigateTo('leader', '/leader')}
+          onNavigateGuestLobby={() => navigateTo('guest-lobby', '/guest-lobby')}
+          onNavigatePublicLobby={handleNavigatePublicLobby}
+          onNavigateEnterOffice={handleNavigateEnterOffice}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
         />
       )}
 
@@ -768,6 +1180,10 @@ export const App: React.FC = () => {
           currentLobbyName={currentLobbyName}
           onOpenLobbySelector={() => setIsLobbySelectorOpen(true)}
           onOpenAdminBilling={() => setIsAdminBillingOpen(true)}
+          onNavigateAdmin={() => navigateTo('admin', '/x90x9admin')}
+          onNavigateLeader={() => navigateTo('leader', '/leader')}
+          onOpenAiGuide={() => setIsAiGuideOpen(true)}
+          onNavigateEnterOffice={handleNavigateEnterOffice}
         />
 
         {/* Main Workspace Viewport */}
@@ -777,6 +1193,44 @@ export const App: React.FC = () => {
               {/* Phaser Game Canvas (Instantiated only when in simulation view with non-zero dimensions) */}
               {currentView === 'simulation' && (
                 <PhaserGame onSceneReady={handleSceneReady} />
+              )}
+
+              {/* Zoom-like Top Camera Conference Strip (Non-blocking) */}
+              {currentView === 'simulation' && (
+                <TopCameraBar
+                  isCamOn={isCamOn}
+                  isMicOn={isMicOn}
+                  onToggleCam={() => {
+                    setIsCamOn((c) => {
+                      const next = !c;
+                      multiplayerService.sendMediaState({ isCamOn: next });
+                      return next;
+                    });
+                  }}
+                  onToggleMic={() => {
+                    setIsMicOn((m) => {
+                      const next = !m;
+                      multiplayerService.sendMediaState({ isMicOn: next });
+                      return next;
+                    });
+                  }}
+                  userName={getUserDisplayName(currentUser)}
+                  userAvatar={currentUser?.avatar}
+                  remotePlayers={onlineRemotePlayers}
+                />
+              )}
+
+              {/* Bottom-Left Minimap Radar Widget */}
+              {currentView === 'simulation' && (
+                <MinimapWidget
+                  currentZoneName={currentZoneName}
+                  remotePlayers={onlineRemotePlayers}
+                />
+              )}
+
+              {/* Mobile Priority Virtual Controls (Analog Joystick + Action Button) */}
+              {currentView === 'simulation' && (
+                <MobileVirtualControls isSitting={userStatus === 'busy'} />
               )}
 
               {/* Right-Side Live Bracket Status Sidebar (Unified Participants Panel) */}
@@ -881,6 +1335,7 @@ export const App: React.FC = () => {
                 onOpenProfile={() => setIsAuthOpen(true)}
                 onOpenCustomizer={() => setIsCustomizerOpen(true)}
                 onOpenMeeting={handleOpenVideoConference}
+                onOpenAiGuide={() => setIsAiGuideOpen(true)}
               />
 
               {/* Slide-in Drawers */}
@@ -962,6 +1417,15 @@ export const App: React.FC = () => {
       />
 
       {/* Character / Player Customizer Modal (Universal LPC Format) */}
+      {/* NEURO AI Assistant Interactive Gameplay Guide Modal */}
+      <NeuroAssistantModal
+        isOpen={isAiGuideOpen}
+        onClose={() => setIsAiGuideOpen(false)}
+        onOpen={() => setIsAiGuideOpen(true)}
+        currentRoomName={currentLobbyName}
+        isGuest={currentLobbyId === 'LOBBY-PUBLIC'}
+      />
+
       <CharacterCustomizerModal
         isOpen={isCustomizerOpen}
         onClose={() => setIsCustomizerOpen(false)}
