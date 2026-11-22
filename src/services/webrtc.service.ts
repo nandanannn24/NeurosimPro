@@ -394,7 +394,48 @@ class WebRTCService {
     this.peerConnections.clear();
     this.remoteStreams.clear();
   }
+
+  private screenStream: MediaStream | null = null;
+
+  public async startScreenShareStream(screenStream: MediaStream): Promise<void> {
+    this.screenStream = screenStream;
+    const screenTrack = screenStream.getVideoTracks()[0];
+    if (!screenTrack) return;
+
+    for (const [targetSocketId, pc] of this.peerConnections.entries()) {
+      const senders = pc.getSenders();
+      const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+      if (videoSender) {
+        try {
+          await videoSender.replaceTrack(screenTrack);
+        } catch (e) {
+          console.warn('[WebRTC] Replace track error:', e);
+        }
+      } else {
+        pc.addTrack(screenTrack, screenStream);
+        this.renegotiatePeer(targetSocketId, pc);
+      }
+    }
+  }
+
+  public async stopScreenShareStream(): Promise<void> {
+    const originalVideoTrack = this.localStream?.getVideoTracks()[0] || null;
+    this.screenStream = null;
+
+    for (const [, pc] of this.peerConnections.entries()) {
+      const senders = pc.getSenders();
+      const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+      if (videoSender && originalVideoTrack) {
+        try {
+          await videoSender.replaceTrack(originalVideoTrack);
+        } catch (e) {
+          console.warn('[WebRTC] Restore camera track error:', e);
+        }
+      }
+    }
+  }
 }
+
 
 export const webrtcService = new WebRTCService();
 

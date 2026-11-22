@@ -1,188 +1,131 @@
-# 🧠 NEUROSIM: Simulator Dinamika Kantor Berbasis Agen AI untuk Pekerja Neurodivergen
+# 🏢 NEUROSIM PRO — Virtual Office for Remote Teams (WFH, WFA, WFC)
 
-> **Mengubah Tantangan Sosial Menjadi Kesiapan Profesional Melalui Simulasi Ruang Kerja Berbasis AI yang Aman, Adaptif, dan Terukur.**
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.2+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.2+-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Phaser](https://img.shields.io/badge/Phaser-3.80+-E91E63?logo=phaser&logoColor=white)](https://phaser.io/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101?logo=socketdotio&logoColor=white)](https://socket.io/)
+[![WebRTC](https://img.shields.io/badge/WebRTC-PeerConnection-333333?logo=webrtc&logoColor=white)](https://webrtc.org/)
 
-[![Hackathon INCEPTION 2026](https://img.shields.io/badge/Hackathon-INCEPTION%202026-0f766e?style=for-the-badge)](https://github.com/)
-[![Sub-Theme](https://img.shields.io/badge/Sub--Tema-Education%20%26%20Inclusive%20Future%20Skills-0284c7?style=for-the-badge)](https://github.com/)
-[![Stack](https://img.shields.io/badge/Tech-React%20%7C%20Phaser%203%20%7C%20Node.js%20%7C%20Gemini%20API-4f46e5?style=for-the-badge)](https://github.com/)
-
-Disusun oleh Tim **"mamah doain aku lolos final"** — Universitas Pembangunan Nasional "Veteran" Jawa Timur:
-- **Rifat Abhista** - Lead Backend & AI Architecture
-- **Priyoga Listyo Ananda** - 2D Game World & Phaser Engine
-- **Baginda Putra Krista** - Frontend UI/UX, Aksesibilitas & Konten Skenario
+**NeuroSim PRO** adalah platform kantor virtual online (*virtual workspace*) interaktif 2D yang dirancang khusus bagi para pekerja jarak jauh (**Work From Home / WFH**, **Work From Anywhere / WFA**, dan **Work From Cafe / WFC**). Platform ini menghubungkan seluruh anggota perusahaan dalam satu lingkungan kantor virtual terpadu, memungkinkan kolaborasi alami, komunikasi tatap muka langsung, dan koordinasi kerja tanpa batas geografis.
 
 ---
 
-## 📌 Daftar Isi
-1. [Latar Belakang Masalah](#-latar-belakang-masalah)
-2. [Solusi Kami: NEUROSIM](#-solusi-kami-neurosim)
-3. [Fitur Utama (MVP)](#-fitur-utama-mvp)
-4. [Tiga Skenario Inti & Rubrik 4 Dimensi](#-tiga-skenario-inti--rubrik-4-dimensi)
-5. [Arsitektur Sistem & AI](#-arsitektur-sistem--ai)
-6. [Keselamatan Psikologis & Aksesibilitas](#-keselamatan-psikologis--aksesibilitas)
-7. [Panduan Instalasi & Menjalankan Proyek](#-panduan-instalasi--menjalankan-proyek)
-8. [Deklarasi Penggunaan AI & Pihak Ketiga (AI & Third-Party Declaration)](#-deklarasi-penggunaan-ai--pihak-ketiga-ai--third-party-declaration)
-9. [Lisensi & Referensi](#-lisensi--referensi)
+## 🌟 Fitur Utama Platform
+
+### 1. Lingkungan Kantor Virtual 2D Realtime (Multi-Tenant & Multi-Bracket)
+- **Denah Kantor Beresolusi Tinggi (2752×1536 px):** Ditenagai oleh engine Phaser 3 dengan sistem partisi spasial, navigasi avatar 4 arah (WASD / Panah / Analog Mobile), dan sistem deteksi tabrakan (*collision physics*).
+- **Zonasi Kerja Terstruktur:** 
+  - *Workstation Utama (16 Meja Kerja Berkomputer)*
+  - *Ruang Rapat Strategis & Konferensi VIP*
+  - *Pantry & Coffee Breakroom*
+  - *Ruang Eksekutif & Manajemen*
+  - *Area Fokus & Santai (AFK Zone)*
+- **Sistem Server Bracket Multi-Perusahaan:**
+  - `LOBBY-PUBLIC`: Ruang eksplorasi tamu dan orientasi awal pengunjung publik.
+  - `LOBBY-01` s/d `LOBBY-05`: Server bracket terisolasi khusus perusahaan berlisensi (PT Inovasi Digital Nusantara, PT Nusantara Teknologi Mandiri, PT Kreatif Media Digital, PT Solusi Awan Kolaborasi, PT Ventura Kapital Asia).
+
+### 2. Komunikasi Realtime & Audio Visual (WebRTC & Socket.IO)
+- **WebRTC Peer-to-Peer Video & Audio:** Komunikasi kamera dan mikrofon langsung antar rekan kerja dengan latensi ultra-rendah.
+- **Live Screen Sharing Transmit & View:** Berbagi layar kerja untuk presentasi dokumen, kode, dan demo proyek langsung ke rekan satu ruangan dengan fallback layout beresolusi tinggi.
+- **Proximity Audio & Dynamic Zones:** Mendukung interaksi audio visual otomatis saat avatar berada di zona rapat atau berdekatan dengan rekan kerja.
+- **Multiplayer State Sync:** Sinkronisasi koordinat posisi avatar, status duduk di kursi meja kerja, arah hadap, ekspresi reaksi emoji, dan obrolan balon 2D secara instan ke seluruh klien yang terhubung.
+
+### 3. Manajemen Agenda & To-Do List Terpadu
+- **Papan Agenda Kerja Persisten:** Pengelolaan tugas tim (Daily Standup, Desain UI, Presentasi Klien, Operasional Server) yang tersinkronisasi lintas perangkat dan disimpan di database/in-memory store.
+- **Sinkronisasi Tugas Realtime:** Setiap perubahan status tugas (tambah, centang selesai, atau hapus) langsung ter-update di layar seluruh anggota tim di ruangan yang sama.
+
+### 4. Dashboard Monitoring & Kontrol Sesuai Hak Akses
+- **Dashboard Anggota Tim:** Informasi kartu ID anggota, avatar virtual aktif, navigasi cepat antar zona kerja, dan pemilih server bracket.
+- **Leader Dashboard (`/leader`):** Khusus pemimpin divisi/tim untuk memantau kehadiran anggota, status meja kerja, log aktivitas per jam, dan **fitur broadcast pengumuman tim (*Live Announcement*)** ke seluruh ruangan.
+- **Admin Dashboard (`/admin` / `x90x9admin`):** Khusus manajemen perusahaan untuk mengelola kuota server bracket, generate kode akses enterprise, reset sesi billing karyawan, dan audit keamanan sistem.
+
+### 5. NEURO AI Assistant (Google Gemini AI)
+- Asisten virtual pintar terintegrasi di pojok kanan bawah yang siap memandu karyawan mengenai fasilitas kantor, navigasi zona, cara bergabung ke rapat video, dan tips produktivitas kerja jarak jauh.
 
 ---
 
-## 🧩 Latar Belakang Masalah
+## 🏗️ Arsitektur Teknologi
 
-Mahasiswa tingkat akhir dan lulusan baru (*fresh graduate*) neurodivergen—seperti individu pada spektrum autisme atau ADHD—sering kali memiliki kompetensi teknis yang kuat, namun tersandung pada **"kurikulum tersembunyi"** di dunia kerja: memahami komunikasi implisit sehari-hari.
-
-Instruksi yang ambigu (*"Tolong dirapikan ya, besok pagi sudah harus bisa dilihat"*), kritik yang dibungkus basa-basi, hingga perubahan prioritas mendadak di luar jam kerja kerap memicu kecemasan dan kesalahpahaman ketika tidak tersedia ruang berlatih yang aman dan bebas penghakiman.
-
-Berlandaskan **Teori *Double Empathy*** (Milton, 2012) serta semangat ketenagakerjaan inklusif di Indonesia (**UU No. 8 Tahun 2016 Pasal 53** & **PP No. 60 Tahun 2020**), **NEUROSIM tidak bertujuan "memperbaiki" atau menyeragamkan pengguna agar terdengar neurotipikal**. Sebaliknya, NEUROSIM menyediakan ruang simulasi privat agar pengguna dapat berlatih membaca konteks, mengajukan klarifikasi spesifik, dan menyampaikan batasan kerja secara jelas dengan gaya komunikasi mereka sendiri.
-
----
-
-## 💡 Solusi Kami: NEUROSIM
-
-**NEUROSIM** adalah simulator komunikasi kerja berbasis web yang menggabungkan eksplorasi ruang kantor 2D interaktif dengan simulasi percakapan berbasis *Large Language Model* (Google Gemini API) yang terstruktur.
-
-### Alur Pengalaman Pengguna (4 Langkah, 1 Keputusan)
-1. **Pilih Skenario & Tujuan:** Pengguna memilih skenario, menetapkan tujuan komunikasinya sendiri, mengatur tingkat kesulitan (Level 1–3), dan memilih visibilitas petunjuk (*hints*). Tersedia dalam **Dual-Mode UX**: *Mode Jelajah Kantor 2D* atau *Mode Daftar Skenario Langsung* (bebas distraksi visual).
-2. **Baca Konteks Eksplisit:** Layar pengantar menjelaskan siapa lawan bicara, hubungan kerja, dan situasi yang sedang terjadi sehingga pengguna tidak perlu menebak latar.
-3. **Berinteraksi (Maksimal 6 Giliran):** Percakapan berbasis teks dengan karakter AI. Selama sesi berlangsung, tombol kendali darurat (**Jeda, Lewati, Keluar, dan Petunjuk**) selalu tersedia.
-4. **Terima Umpan Balik Berbasis Alasan:** Sistem menilai transkrip menggunakan rubrik 4 dimensi, membongkar **maksud tersembunyi (*hidden intent*)** lawan bicara, serta memberikan 2 contoh alternatif respons (versi ringkas dan versi rinci).
-5. **Keputusan — Coba Lagi & Bandingkan:** Pengguna dapat mengulang skenario dengan pendekatan berbeda dan melihat perbandingan hasil antarpercobaan secara berdampingan (*side-by-side comparison*).
-
----
-
-## ✨ Fitur Utama (MVP)
-
-- **🎮 Hybrid Gather-like 2D & Direct Mode (Dual-Mode UX):** Eksplorasi ruang kantor 2D menggunakan **Phaser 3** yang dipadukan dengan lapisan antarmuka **React DOM Overlay** untuk menjamin keterbacaan teks, aksesibilitas pembaca layar, dan opsi beralih ke tampilan daftar langsung kapan saja.
-- **🤖 Dual Isolated LLM Calls (Tanpa *Over-engineering*):** Satu model bahasa besar (**Google Gemini API**) yang dipisahkan secara tegas menjadi dua pemanggilan:
-  1. *Persona Roleplay Call* (memerankan lawan bicara sesuai tingkat kesulitan dan batas perilaku).
-  2. *Rubric Evaluator Call* (mengevaluasi transkrip secara objektif dengan keluaran skema JSON tervalidasi).
-- **🎚️ Penyesuaian Kesulitan Berbasis Aturan (*Rule-Based Adaptive Difficulty*):**
-  - **Level 1:** Instruksi lebih eksplisit, petunjuk aktif.
-  - **Level 2:** Instruksi cukup implisit, rincian baru keluar bila ditanya.
-  - **Level 3:** Instruksi implisit disertai perubahan/permintaan tambahan mendadak di tengah percakapan.
-  - *Rekomendasi Otomatis:* Jika $\ge 3$ dimensi bernilai `Efektif`, sistem menawarkan naik level. Jika $\ge 2$ dimensi bernilai `Perlu Dilatih`, sistem menawarkan turun level atau mengaktifkan petunjuk.
-- **🔒 Stateless Backend & Penyimpanan Lokal (`localStorage`):** Tidak ada basis data di server. Seluruh riwayat percobaan dan perbandingan hasil disimpan di peramban pengguna untuk melindungi privasi sepenuhnya.
-
----
-
-## 📋 Tiga Skenario Inti & Rubrik 4 Dimensi
-
-### Skenario pada MVP
-| ID | Skenario | Karakter AI | Situasi | Keterampilan yang Dilatih |
-| :--- | :--- | :--- | :--- | :--- |
-| **1** | **Instruksi Ambigu** | **Bu Rina** *(Atasan Perfeksionis)* | Meminta halaman beranda "dirapikan" tanpa rincian dengan tenggat besok pagi. | Mengajukan pertanyaan klarifikasi yang singkat dan spesifik (objek kerja & batas waktu). |
-| **2** | **Kritik Tidak Langsung** | **Dimas** *(Rekan Kerja Senior)* | Menanggapi hasil kerja dengan kalimat samar: *"Menarik sih, tapi mungkin bisa dipikirkan lagi."* | Menanyakan maksud sebenarnya dan meminta contoh perbaikan yang konkret. |
-| **3** | **Revisi Mendadak** | **Pak Hendra** *(Klien)* | Meminta perubahan besar di luar jam kerja dengan tenggat mendesak. | Menetapkan batasan (*boundaries*), menegosiasikan tenggat, dan mengenali kapan melibatkan atasan. |
-
-### Rubrik Penilaian 4 Dimensi
-NEUROSIM menilai efektivitas komunikasi berdasarkan tujuan pengguna, **bukan** berdasarkan keramahan semu atau basa-basi sosial. Setiap dimensi dinilai dalam 3 tingkat deskriptif (**Perlu Dilatih**, **Berkembang**, **Efektif**):
-
-1. **Kejelasan Pesan:** Apakah maksud pengguna mudah dipahami dan spesifik?
-2. **Pemahaman Konteks:** Apakah pengguna menangkap apa yang sebenarnya diminta (termasuk yang tersirat) atau memastikannya lewat pertanyaan?
-3. **Ketercapaian Tujuan:** Apakah respons mendekatkan pengguna ke tujuan latihan yang ia pilih sendiri di awal?
-4. **Rasa Hormat & Batasan:** Apakah respons menghormati lawan bicara sekaligus menjaga kapasitas serta batasan kerja pengguna?
-
----
-
-## 🏗️ Arsitektur Sistem & AI
-
-```mermaid
-flowchart LR
-    subgraph Browser ["Peramban Pengguna (Client)"]
-        Phaser["Phaser 3 (2D Office World)"]
-        ReactUI["React DOM Overlay (Chat, Rubrik, Aksesibilitas)"]
-        LocalStore[("localStorage (Riwayat & Komparasi)")]
-        Phaser <-->|EventBus| ReactUI
-        ReactUI <--> LocalStore
-    end
-
-    subgraph Server ["Stateless Backend (Node.js)"]
-        PromptBuilder["Prompt Builder (Naskah Skenario, Persona & Hidden Intent)"]
-        Validator["Zod JSON Schema Validator + Safety Keyword Filter"]
-    end
-
-    subgraph AI ["Penyedia LLM"]
-        Gemini["Google Gemini API (Roleplay Call & Evaluator Call)"]
-    end
-
-    ReactUI -->|HTTPS JSON| PromptBuilder
-    PromptBuilder --> Gemini
-    Gemini --> Validator
-    Validator -->|Validated Response / Fallback| ReactUI
+```
+NeuroSim PRO
+├── Frontend (Client-side)
+│   ├── React 18 & TypeScript (UI, Modals, State Management)
+│   ├── Tailwind CSS (Styling, A11y & Kontras WCAG AA)
+│   ├── Phaser 3 (Engine Kantor Virtual 2D, Sprites, Tilemaps, Spatial Audio)
+│   └── WebRTC Client (MediaStream, RTCPeerConnection)
+├── Backend & Middleware
+│   ├── Node.js + Vite Development & Production Server
+│   ├── Socket.IO Server (Multiplayer State, Chat, Reactions, Announcements)
+│   ├── Express-compatible REST API (Auth, Brackets, Tasks, Admin, Gemini AI)
+│   └── JWT Authentication Guard (Session tokens & Role-based Access Control)
+└── Data Layer
+    ├── MySQL Database (`neurosim_db` relational tables)
+    └── In-Memory Store & Fallback Registry (Zero-downtime reliability)
 ```
 
-### Penanganan Risiko Kesalahan AI (*Guardrails & Fallbacks*)
-- **Jangkar Maksud Tersembunyi (*Human-Authored Hidden Intent*):** Maksud tersembunyi karakter ditulis oleh tim di sisi server, bukan dikarang oleh AI, sehingga evaluator memiliki tolok ukur yang konsisten.
-- **Validasi Skema JSON & *Auto-Retry*:** Keluaran evaluator divalidasi dengan skema JSON ketat (`zod`). Jika format gagal, backend otomatis mengulang permintaan 1 kali; jika tetap gagal, sistem menampilkan umpan balik cadangan berbasis templat.
-- **Batas Perilaku & Filter Keamanan:** Karakter AI dibatasi maksimal 6 giliran percakapan, diinstruksikan untuk tidak menyerang pribadi pengguna, dan keluarannya melewati filter kata kunci pada backend.
+---
+
+## 🚀 Panduan Menjalankan Aplikasi
+
+### Prasyarat Sistem
+- Node.js versi 18.x atau lebih baru
+- npm versi 9.x atau lebih baru
+- (Opsional) MySQL Server jika ingin menggunakan penyimpanan relasional permanen
+
+### Langkah Instalasi
+
+1. **Clone Repositori:**
+   ```bash
+   git clone https://github.com/nandanann24/NeurosimPro.git
+   cd NeurosimPro
+   ```
+
+2. **Instalasi Dependensi:**
+   ```bash
+   npm install
+   ```
+
+3. **Konfigurasi Environment (`.env`):**
+   Salin berkas contoh atau buat berkas `.env` di root direktori:
+   ```env
+   PORT=3000
+   NODE_ENV=development
+   JWT_SECRET=neurosim_super_secret_jwt_key_2026_secure
+   GEMINI_API_KEY=your_gemini_api_key_here
+   
+   # Konfigurasi Database MySQL (Opsional, otomatis fallback ke In-Memory)
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=
+   DB_NAME=neurosim_db
+   ```
+
+4. **Menjalankan Server Pengembangan:**
+   ```bash
+   npm run dev
+   ```
+   Buka peramban di `http://localhost:3000`.
+
+5. **Build untuk Produksi:**
+   ```bash
+   npm run build
+   npm run preview
+   ```
 
 ---
 
-## 🛡️ Keselamatan Psikologis & Aksesibilitas
+## 🔑 Akun Demo & Akses Cepat
 
-- **Bukan Alat Diagnosis:** NEUROSIM menyertakan pernyataan eksplisit bahwa aplikasi ini adalah alat latihan komunikasi kerja, bukan perangkat diagnosis medis maupun terapi klinis.
-- **Transparansi & Fitur *Flagging* AI:** Setiap hasil evaluasi disertai catatan bahwa penilaian AI adalah satu sudut pandang dan dapat keliru. Pengguna dapat menekan tombol **"Tandai Umpan Balik Kurang Tepat"** jika merasa evaluasi tidak sesuai konteks.
-- **Desain Ramah Sensorik:**
-  - Pengaturan **Kurangi Gerak (*Reduce Motion*)** yang menonaktifkan animasi transisi dan *typewriter effect* agar nyaman bagi pengguna dengan sensitivitas visual maupun pengguna pembaca layar (*screen reader*).
-  - Pengaturan **Ukuran Teks Dinamis** dan kontras warna tenang (standar WCAG AA).
-  - Penanganan khusus input keyboard (`disableGlobalCapture` pada Phaser saat modal obrolan aktif) agar navigasi keyboard dan pengetikan di kolom chat berjalan mulus tanpa bentrok dengan kontrol game.
-
----
-
-## 🚀 Panduan Instalasi & Menjalankan Proyek
-
-### Prasyarat
-- **Node.js** v18+ dan **npm**
-- Kunci API **Google Gemini** (`GEMINI_API_KEY`)
-
-### 1. Kloning Repositori
-```bash
-git clone https://github.com/username/neurosim.git
-cd neurosim
-```
-
-### 2. Konfigurasi Variabel Lingkungan (*Environment Variables*)
-Salin berkas `.env.example` menjadi `.env` pada direktori proyek/server, lalu masukkan kunci API Gemini Anda:
-```env
-GEMINI_API_KEY=masukkan_api_key_gemini_anda_di_sini
-PORT=3001
-```
-
-### 3. Instalasi Dependensi & Menjalankan Aplikasi
-```bash
-# Instal seluruh dependensi
-npm install
-
-# Jalankan mode pengembangan (Frontend + Stateless Backend)
-npm run dev
-```
-Buka peramban dan akses `http://localhost:5173`.
+| Peran (Role) | Username | Password | Hak Akses & Fitur |
+|---|---|---|---|
+| **Tamu / Guest** | *(Tanpa Login)* | *(Tanpa Login)* | Eksplorasi Public Lobby, obrolan teks global |
+| **Karyawan / Staff** | `staff` | `staff123` | Meja kerja, kamera, mik, to-do list, WebRTC |
+| **Leader / Pemimpin** | `leader` | `leader123` | Dashboard Leader, broadcast pengumuman tim |
+| **Super Admin** | `admin` | `admin123` | Dashboard Admin, manajemen server, kuota |
 
 ---
 
-## 📜 Deklarasi Penggunaan AI & Pihak Ketiga (*AI & Third-Party Declaration*)
+## 📄 Lisensi
 
-Berikut ini merupakan deklarasi transparansi pustaka dan aset pihak ketiga yang digunakan dalam secara transparan seluruh layanan kecerdasan buatan (AI), pustaka, dan aset pihak ketiga yang digunakan dalam pengembangan **NEUROSIM**:
-
-### 1. Layanan AI saat Aplikasi Berjalan (*Runtime AI Services*)
-- **Google Gemini API (`@google/genai`):** Digunakan sebagai mesin pemrosesan bahasa alami untuk dua fungsi terpisah: (1) menghasilkan respons dialog karakter dalam skenario kerja, dan (2) mengevaluasi transkrip percakapan pengguna berdasarkan rubrik 4 dimensi.
-- **Privasi Data Pengguna:** Backend NEUROSIM bersifat *stateless* dan tidak menyimpan transkrip percakapan di basis data server mana pun. Teks percakapan dikirimkan ke Google Gemini API semata-mata untuk pemrosesan sesi berjalan, dan pengguna diberi peringatan sebelum memulai simulasi agar tidak memasukkan informasi identitas pribadi (*PII*).
-
-### 2. Alat Bantu AI selama Pengembangan (*Development-Time AI Assistance*)
-- Selama *24-Hour Hacking Day*, tim menggunakan asisten AI (Google Gemini / LLM) sebagai pendamping penyusunan struktur kode, pembuatan skema validasi TypeScript/Zod, dan dokumentasi, dengan seluruh logika produk, skenario kerja, rubrik evaluasi, serta pengujian integrasi dikendalikan dan diverifikasi sepenuhnya oleh tim.
-
-### 3. Pustaka Perangkat Lunak & Aset Visual Pihak Ketiga
-- **Kerangka Kerja & Pustaka:** React, TypeScript, Vite, Phaser 3 (`v3.85+`), Tailwind CSS, Node.js, Zod, Lucide Icons.
-- **Aset Visual 2D & UI:**
-  - *Modern Rooms & People Unified Pack* (untuk latar ruangan kantor 2D, perabot, dan *sprite* karakter).
-  - *Kenney Pixel UI Pack* (CC0 1.0 Universal — untuk elemen antarmuka pendukung).
-
----
-
-## 📚 Lisensi & Referensi
-
-Proyek ini dikembangkan untuk **Hackathon INCEPTION 2026 (HIMATIFA UPN "Veteran" Jawa Timur)**.
-
-**Referensi Ilmiah & Regulasi:**
-1. **Undang-Undang Republik Indonesia Nomor 8 Tahun 2016** tentang Penyandang Disabilitas (Pasal 53 mengenai kuota ketenagakerjaan inklusif) & **Peraturan Pemerintah Nomor 60 Tahun 2020** tentang Unit Layanan Disabilitas Bidang Ketenagakerjaan.
-2. **Milton, D. E. M. (2012).** *On the ontological status of autism: The 'double empathy problem'*. Disability & Society, 27(6), 883–887. https://doi.org/10.1080/09687599.2012.710008
-3. **Smith, M. J., dkk. (2014).** *Virtual reality job interview training in adults with autism spectrum disorder*. Journal of Autism and Developmental Disorders, 44(10), 2450–2463. https://doi.org/10.1007/s10803-014-2113-y
+Proyek ini dirilis di bawah lisensi terbuka [MIT License](LICENSE). Bebas digunakan, dimodifikasi, dan didistribusikan untuk keperluan pengembangan kantor virtual dan kolaborasi tim jarak jauh.

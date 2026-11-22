@@ -28,7 +28,7 @@ import { EnterOfficeView } from './components/views/EnterOfficeView';
 import { NeuroAssistantModal } from './components/modals/NeuroAssistantModal';
 import { AdminComplexLoginModal } from './components/auth/AdminComplexLoginModal';
 import { CompanyAccessCode, CompanyRecord } from './types/lobby';
-import { Bot, ArrowRight } from 'lucide-react';
+import { Bot, ArrowRight, Bell, X, Tv } from 'lucide-react';
 import { TopCameraBar } from './components/gather/TopCameraBar';
 import { MinimapWidget } from './components/gather/MinimapWidget';
 import { MobileVirtualControls } from './components/gather/MobileVirtualControls';
@@ -489,6 +489,33 @@ export const App: React.FC = () => {
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [onlineRemotePlayers, setOnlineRemotePlayers] = useState<PlayerPresence[]>([]);
 
+  // Realtime Announcement & Screen Share Viewer States
+  const [activeAnnouncement, setActiveAnnouncement] = useState<{
+    id: string;
+    text: string;
+    sender: string;
+    role: string;
+    timestamp: string;
+  } | null>(null);
+
+  const [viewingRemotePresenter, setViewingRemotePresenter] = useState<PlayerPresence | null>(null);
+
+  const activeRemotePresenter = useMemo(() => {
+    return onlineRemotePlayers.find((p) => p.mediaState?.isScreenSharing);
+  }, [onlineRemotePlayers]);
+
+  // Otomatis sinkronkan jika presenter yang sedang ditonton berhenti sharing
+  useEffect(() => {
+    if (viewingRemotePresenter) {
+      const stillSharing = onlineRemotePlayers.some(
+        (p) => p.socketId === viewingRemotePresenter.socketId && p.mediaState?.isScreenSharing
+      );
+      if (!stillSharing) {
+        setViewingRemotePresenter(null);
+      }
+    }
+  }, [onlineRemotePlayers, viewingRemotePresenter]);
+
 
 
   const dynamicParticipants: Participant[] = React.useMemo(() => {
@@ -651,28 +678,88 @@ export const App: React.FC = () => {
     localStorage.setItem('neurosim_current_room_code', currentRoom.code);
   }, [currentRoom]);
 
+  // Load initial tasks from persistent API across devices
+  useEffect(() => {
+    fetch('/api/tasks')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.tasks) && data.tasks.length > 0) {
+          setTasks(data.tasks);
+        }
+      })
+      .catch((err) => console.warn('[Tasks API] Gagal memuat daftar tugas:', err));
+  }, []);
+
+  // Listen for realtime task sync from other team members
+  useEffect(() => {
+    const unsub = multiplayerService.onTaskSync((data) => {
+      if (data.action === 'create' && data.task) {
+        setTasks((prev) => {
+          if (prev.some((t) => t.id === data.task.id)) return prev;
+          return [data.task, ...prev];
+        });
+      } else if (data.action === 'toggle' && data.taskId) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === data.taskId ? { ...t, completed: !t.completed } : t))
+        );
+      } else if (data.action === 'delete' && data.taskId) {
+        setTasks((prev) => prev.filter((t) => t.id !== data.taskId));
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Listen for realtime leader announcement
+  useEffect(() => {
+    const unsub = multiplayerService.onAnnouncement((data) => {
+      setActiveAnnouncement(data);
+      setTimeout(() => {
+        setActiveAnnouncement((cur) => (cur?.id === data.id ? null : cur));
+      }, 10000);
+    });
+    return unsub;
+  }, []);
+
   // Task management handlers for interactive office board
   const handleToggleTask = useCallback((taskId: string) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
     );
+    fetch('/api/tasks/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId }),
+    }).catch(console.warn);
+    multiplayerService.sendTaskSync('toggle', { taskId });
   }, []);
 
   const handleAddTask = useCallback((title: string, category: TaskCategory) => {
     const newTask: OfficeTask = {
-      id: `task-${Date.now()}`,
+      id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       title,
       category,
-      zone: 'Kantor Pusat NeuroSim Pro',
+      zone: 'Kantor Pusat Virtual Office',
       assignedTo: currentUser?.fullName || 'Anggota Tim',
       completed: false,
       createdAt: new Date().toISOString(),
     };
     setTasks((prev) => [newTask, ...prev]);
+    fetch('/api/tasks/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTask),
+    }).catch(console.warn);
+    multiplayerService.sendTaskSync('create', { task: newTask });
   }, [currentUser]);
 
   const handleDeleteTask = useCallback((taskId: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    fetch('/api/tasks/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId }),
+    }).catch(console.warn);
+    multiplayerService.sendTaskSync('delete', { taskId });
   }, []);
 
   useEffect(() => {
@@ -1280,12 +1367,66 @@ export const App: React.FC = () => {
                 onJoin={handleJoinMeetingFromLobby}
               />
 
-              {/* Screen Share Live Presentation Widget */}
+              {/* Realtime Leader Broadcast Announcement Banner */}
+              {activeAnnouncement && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92vw] bg-amber-500 text-slate-950 px-4 py-3 rounded-2xl shadow-2xl border-2 border-amber-600 flex items-start gap-3 animate-in slide-in-from-top-4 duration-300">
+                  <Bell className="w-5 h-5 flex-shrink-0 mt-0.5 text-slate-950 animate-bounce" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-950 mb-0.5">
+                      <span>📢 PENGUMUMAN DARI {activeAnnouncement.sender.toUpperCase()} ({activeAnnouncement.role})</span>
+                      <span className="text-[10px] font-mono opacity-80">{activeAnnouncement.timestamp}</span>
+                    </div>
+                    <p className="text-xs text-slate-900 font-medium leading-relaxed">
+                      {activeAnnouncement.text}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAnnouncement(null)}
+                    className="p-1 hover:bg-black/10 rounded-lg text-slate-950 transition-colors cursor-pointer"
+                    title="Tutup Pengumuman"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Floating Alert: Rekan Tim Sedang Berbagi Layar */}
+              {activeRemotePresenter && !viewingRemotePresenter && !isScreenSharing && (
+                <div className="fixed top-14 left-1/2 -translate-x-1/2 z-40 bg-[#0f172a]/95 border border-amber-400/60 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-md animate-bounce">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+                    <span className="text-xs font-semibold">
+                      🖥️ <strong className="text-amber-300">{activeRemotePresenter.fullName}</strong> sedang berbagi layar presentasi.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewingRemotePresenter(activeRemotePresenter)}
+                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-stone-900 font-bold text-xs rounded-full transition-colors cursor-pointer"
+                  >
+                    Tonton Presentasi
+                  </button>
+                </div>
+              )}
+
+              {/* Screen Share Live Presentation Widget (Host / Kita yang berbagi) */}
               <ScreenShareWidget
                 isOpen={isScreenSharing}
                 onClose={handleCloseScreenShare}
                 userName={getUserDisplayName(currentUser)}
               />
+
+              {/* Screen Share Viewer Widget (Menonton Presentasi Rekan) */}
+              {viewingRemotePresenter && (
+                <ScreenShareWidget
+                  isOpen={true}
+                  onClose={() => setViewingRemotePresenter(null)}
+                  isViewerMode={true}
+                  presenterName={viewingRemotePresenter.fullName}
+                  presenterSocketId={viewingRemotePresenter.socketId}
+                />
+              )}
 
               {/* Bottom Virtual Office Action Dock */}
               <GatherDock

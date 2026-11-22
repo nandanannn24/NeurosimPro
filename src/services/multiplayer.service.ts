@@ -377,6 +377,34 @@ class MultiplayerService {
   public getSocketId(): string {
     return this.currentSocketId;
   }
+
+  public sendAnnouncement(text: string, sender: string, role?: string): void {
+    if (!this.socket || !this.isConnected) return;
+    this.socket.emit('c:announcement', { text, sender, role });
+  }
+
+  public onAnnouncement(handler: (data: { id: string; text: string; sender: string; role: string; timestamp: string }) => void): () => void {
+    if (!this.socket) return () => {};
+    this.socket.on('s:announcement_broadcast', handler);
+    return () => {
+      this.socket?.off('s:announcement_broadcast', handler);
+    };
+  }
+
+  public sendTaskSync(action: 'create' | 'toggle' | 'delete', payload: { task?: any; taskId?: string }): void {
+    if (!this.socket || !this.isConnected) return;
+    this.socket.emit('c:task_sync', { action, ...payload });
+  }
+
+  public onTaskSync(handler: (data: { action: 'create' | 'toggle' | 'delete'; task?: any; taskId?: string }) => void): () => void {
+    if (!this.socket) return () => {};
+    this.socket.on('s:task_sync', handler);
+    return () => {
+      this.socket?.off('s:task_sync', handler);
+    };
+  }
+
 }
+
 
 export const multiplayerService = new MultiplayerService();

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { multiplayerService } from '../../services/multiplayer.service';
 import {
   Briefcase,
   Users,
@@ -82,6 +83,11 @@ export const LeaderDashboardView: React.FC<Props> = ({
   const handleSendAnnouncement = (e: React.FormEvent) => {
     e.preventDefault();
     if (!announcementText.trim()) return;
+    multiplayerService.sendAnnouncement(
+      announcementText.trim(),
+      currentUser?.fullName || 'Leader Ruangan',
+      currentUser?.role || 'Leader'
+    );
     setAnnouncementSent(true);
     setAnnouncementText('');
     setTimeout(() => setAnnouncementSent(false), 3000);

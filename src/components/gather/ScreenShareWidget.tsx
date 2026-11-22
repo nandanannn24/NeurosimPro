@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { EventBus, GAME_EVENTS } from '../../game/EventBus';
+import { webrtcService } from '../../services/webrtc.service';
 
 interface Props {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface Props {
   userName?: string;
   isViewerMode?: boolean; // true jika sedang melihat presentasi orang lain
   presenterName?: string;
+  presenterSocketId?: string;
 }
 
 export const ScreenShareWidget: React.FC<Props> = ({
@@ -24,13 +26,26 @@ export const ScreenShareWidget: React.FC<Props> = ({
   userName = 'Pengguna (Anda)',
   isViewerMode = false,
   presenterName = 'Rekan Kerja',
+  presenterSocketId,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // Sambungkan remote WebRTC stream jika tersedia
+  useEffect(() => {
+    if (isViewerMode && isOpen && remoteVideoRef.current && presenterSocketId) {
+      const remoteStream = webrtcService.getRemoteStream(presenterSocketId);
+      if (remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch(console.warn);
+      }
+    }
+  }, [isViewerMode, isOpen, presenterSocketId]);
 
   useEffect(() => {
     // 1. Jika ditutup (isOpen = false), bersihkan stream yang ada
@@ -39,6 +54,7 @@ export const ScreenShareWidget: React.FC<Props> = ({
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
+      webrtcService.stopScreenShareStream().catch(console.warn);
       setIsStreaming(false);
       setIsExpanded(false);
       EventBus.emit(GAME_EVENTS.SCREEN_SHARE_CHANGED, { isSharing: false });
@@ -46,7 +62,7 @@ export const ScreenShareWidget: React.FC<Props> = ({
       return;
     }
 
-    // 2. Jika sedang melihat presentasi orang lain, gunakan mode viewer gambar
+    // 2. Jika sedang melihat presentasi orang lain, gunakan mode viewer gambar / remote stream
     if (isViewerMode) {
       setIsStreaming(true);
       return;
@@ -117,7 +133,7 @@ export const ScreenShareWidget: React.FC<Props> = ({
             }
           }
 
-          // Pastikan jendela aplikasi NeuroSim tetap fokus
+          // Pastikan jendela aplikasi Virtual Office tetap fokus
           try {
             window.focus();
           } catch {}
@@ -126,6 +142,8 @@ export const ScreenShareWidget: React.FC<Props> = ({
           EventBus.emit(GAME_EVENTS.RESUME_INPUT);
 
           streamRef.current = s;
+          webrtcService.startScreenShareStream(s).catch(console.warn);
+
           if (videoRef.current) {
             videoRef.current.srcObject = s;
             videoRef.current.onloadedmetadata = () => {
@@ -142,6 +160,7 @@ export const ScreenShareWidget: React.FC<Props> = ({
                 streamRef.current.getTracks().forEach((t) => t.stop());
                 streamRef.current = null;
               }
+              webrtcService.stopScreenShareStream().catch(console.warn);
               onCloseRef.current();
             };
           }
@@ -153,6 +172,7 @@ export const ScreenShareWidget: React.FC<Props> = ({
             streamRef.current.getTracks().forEach((t) => t.stop());
             streamRef.current = null;
           }
+          webrtcService.stopScreenShareStream().catch(console.warn);
           onCloseRef.current();
         });
     } else {
@@ -171,13 +191,16 @@ export const ScreenShareWidget: React.FC<Props> = ({
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
+      webrtcService.stopScreenShareStream().catch(console.warn);
     };
   }, []);
 
   if (!isOpen) return null;
 
-  // KONDISI 1: JIKA MELIHAT PRESENTASI ORANG LAIN ("ketika lihat orang lain dibuat seperti gambar saja")
+  // KONDISI 1: JIKA MELIHAT PRESENTASI ORANG LAIN
   if (isViewerMode) {
+    const remoteStream = presenterSocketId ? webrtcService.getRemoteStream(presenterSocketId) : null;
+
     return (
       <div
         className={`fixed z-50 bg-[#0b0e14] border-2 border-brass rounded-xl shadow-2xl overflow-hidden flex flex-col select-none ${
@@ -216,53 +239,64 @@ export const ScreenShareWidget: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Gambar Slide Presentasi Orang Lain */}
-        <div
-          className={`relative w-full p-4 sm:p-5 flex flex-col justify-between bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0a0f1d] text-soft overflow-hidden ${
-            isExpanded ? 'flex-1 min-h-0' : 'aspect-video'
-          }`}
-        >
-          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brass" />
-              <h4 className="font-bold text-xs sm:text-sm text-white">
-                Slide Presentasi: Arsitektur Platform NeuroSim
-              </h4>
-            </div>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-              ● Resolusi Gambar Tajam
-            </span>
+        {/* Remote Video Stream jika ada, jika tidak render layout visual presisi */}
+        {remoteStream ? (
+          <div className="relative w-full flex-1 bg-black flex items-center justify-center overflow-hidden">
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-contain"
+            />
           </div>
+        ) : (
+          <div
+            className={`relative w-full p-4 sm:p-5 flex flex-col justify-between bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0a0f1d] text-soft overflow-hidden ${
+              isExpanded ? 'flex-1 min-h-0' : 'aspect-video'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-brass" />
+                <h4 className="font-bold text-xs sm:text-sm text-white">
+                  Sesi Kolaborasi: Virtual Office Remote Teams
+                </h4>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                ● Live Presentation
+              </span>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 my-auto py-2">
-            <div className="p-2.5 rounded bg-white/5 border border-white/10">
-              <span className="text-xs font-bold text-brass block">1. Denah Kantor 2D</span>
-              <p className="text-[10px] text-soft/80 mt-1 leading-relaxed">
-                Navigasi avatar real-time, proximity spatial audio, dan collision interaktif.
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 my-auto py-2">
+              <div className="p-2.5 rounded bg-white/5 border border-white/10">
+                <span className="text-xs font-bold text-brass block">1. Denah Kantor 2D</span>
+                <p className="text-[10px] text-soft/80 mt-1 leading-relaxed">
+                  Navigasi avatar real-time, proximity spatial audio, dan collision interaktif.
+                </p>
+              </div>
+              <div className="p-2.5 rounded bg-white/5 border border-white/10">
+                <span className="text-xs font-bold text-teal block">2. Kolaborasi WFH/WFA</span>
+                <p className="text-[10px] text-soft/80 mt-1 leading-relaxed">
+                  Komunikasi langsung antar karyawan, meja workstation bersama, dan ruang rapat.
+                </p>
+              </div>
+              <div className="p-2.5 rounded bg-white/5 border border-white/10">
+                <span className="text-xs font-bold text-emerald-400 block">3. Multi-Device Realtime</span>
+                <p className="text-[10px] text-soft/80 mt-1 leading-relaxed">
+                  Sinkronisasi WebRTC, agenda pekerjaan terpadu, dan monitoring terpusat.
+                </p>
+              </div>
             </div>
-            <div className="p-2.5 rounded bg-white/5 border border-white/10">
-              <span className="text-xs font-bold text-teal block">2. Simulasi AI Adaptif</span>
-              <p className="text-[10px] text-soft/80 mt-1 leading-relaxed">
-                Interaksi komunikasi profesional dengan evaluasi objektif Gemini 3.5 Flash.
-              </p>
-            </div>
-            <div className="p-2.5 rounded bg-white/5 border border-white/10">
-              <span className="text-xs font-bold text-emerald-400 block">3. Inklusivitas Kerja</span>
-              <p className="text-[10px] text-soft/80 mt-1 leading-relaxed">
-                Desain ramah neurodivergent, rasio kontras WCAG AAA, dan tata letak tenang.
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center justify-between text-[10px] text-soft/60 pt-2 border-t border-white/10">
-            <span>Dipresentasikan oleh {presenterName}</span>
-            <div className="flex items-center gap-1 text-emerald-400">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Gambar Tayangan Presentasi</span>
+            <div className="flex items-center justify-between text-[10px] text-soft/60 pt-2 border-t border-white/10">
+              <span>Dipresentasikan oleh {presenterName}</span>
+              <div className="flex items-center gap-1 text-emerald-400">
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Tayangan Presentasi Aktif</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }

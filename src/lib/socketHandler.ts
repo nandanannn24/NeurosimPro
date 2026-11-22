@@ -219,6 +219,33 @@ export function setupRealtimeSocketIO(httpServer: HTTPServer): SocketIOServer {
       io.emit('s:breakout_move', data);
     });
 
+    // 9. Realtime Team Announcement from Leader Dashboard
+    socket.on('c:announcement', (data: { text: string; sender: string; role?: string }) => {
+      if (!currentRoomId || !data || !data.text) return;
+      io.to(currentRoomId).emit('s:announcement_broadcast', {
+        id: `ann-${Date.now()}`,
+        text: data.text.trim(),
+        sender: data.sender || (playerData?.fullName || 'Leader Divisi'),
+        role: data.role || (playerData?.role || 'Leader'),
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      });
+      console.log(`[Socket.IO] Pengumuman broadcast di ${currentRoomId}: ${data.text}`);
+    });
+
+    // 10. Realtime Agenda & To-Do List Synchronization
+    socket.on('c:task_sync', (data: { action: 'create' | 'toggle' | 'delete'; task?: any; taskId?: string }) => {
+      if (!currentRoomId || !data) return;
+      if (data.action === 'create' && data.task) {
+        lobbyStore.addTask(data.task);
+      } else if (data.action === 'toggle' && data.taskId) {
+        lobbyStore.toggleTask(data.taskId);
+      } else if (data.action === 'delete' && data.taskId) {
+        lobbyStore.deleteTask(data.taskId);
+      }
+      io.to(currentRoomId).emit('s:task_sync', data);
+    });
+
+
     socket.on('c:breakout_return_main', (data: any) => {
       io.emit('s:breakout_return_main', data);
     });

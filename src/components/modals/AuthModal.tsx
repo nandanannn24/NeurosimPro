@@ -402,7 +402,7 @@ export const AuthModal: React.FC<Props> = ({
 
                 {userHistory.length === 0 ? (
                   <div className="p-3 rounded-lg bg-parchment/60 border border-[#d1c7b5] text-center text-xs text-ink-muted">
-                    Belum ada riwayat sesi. Jelajahi virtual office atau ikuti simulasi di Training Hub.
+                    Belum ada riwayat sesi. Mulai sesi kerja Anda di ruang kantor virtual.
                   </div>
                 ) : (
                   <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">

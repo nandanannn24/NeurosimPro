@@ -408,6 +408,62 @@ function neurosimApiPlugin(): Plugin {
           return;
         }
 
+                // 13. Endpoints Agenda & To-Do List (Persistent Across Devices)
+        if (req.method === 'GET' && url === '/api/tasks') {
+          try {
+            const tasks = lobbyStore.getTasks();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, tasks }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/tasks/create') {
+          try {
+            const body = await parseJsonBody(req);
+            const task = lobbyStore.addTask(body);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, task }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/tasks/toggle') {
+          try {
+            const body = await parseJsonBody(req);
+            const task = lobbyStore.toggleTask(body.taskId);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: Boolean(task), task }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/api/tasks/delete') {
+          try {
+            const body = await parseJsonBody(req);
+            const success = lobbyStore.deleteTask(body.taskId);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: err.message }));
+          }
+          return;
+        }
+
         // 12. Endpoint NEURO AI Assistant (Gemini API with Fallback Hierarchy)
         if (req.method === 'POST' && url === '/api/ai/chat') {
           try {

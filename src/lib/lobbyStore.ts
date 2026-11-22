@@ -1,3 +1,42 @@
+// Office Agenda & Tasks in memory store
+let memoryTasks: any[] = [
+  {
+    id: 'task-1',
+    title: 'Daily Standup & Sync Tim Remote',
+    category: 'Meeting',
+    zone: 'Ruang Rapat Utama',
+    assignedTo: 'Seluruh Tim',
+    completed: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-2',
+    title: 'Review Desain UI & Layout Kantor 2D',
+    category: 'Development',
+    zone: 'Workstation Utama',
+    assignedTo: 'Product Team',
+    completed: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-3',
+    title: 'Sesi Kolaborasi & Presentasi Klien Luar',
+    category: 'Collaboration',
+    zone: 'Ruang Konferensi Virtual',
+    assignedTo: 'Lead Project',
+    completed: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-4',
+    title: 'Verifikasi Billing Session & Server Bracket',
+    category: 'Operations',
+    zone: 'Ruang Pimpinan Eksekutif',
+    assignedTo: 'Super Admin',
+    completed: false,
+    createdAt: new Date().toISOString(),
+  },
+];
 import { getDbPool } from './db';
 import {
   LobbyBracket,
@@ -1321,6 +1360,48 @@ export const lobbyStore = {
     if (pool) {
       pool.query('INSERT INTO activity_logs (category, action, actor, details) VALUES (?, ?, ?, ?)', [category, action, actor, details]).catch(() => {});
     }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Realtime Agenda & To-Do List Management
+  // ---------------------------------------------------------------------------
+  getTasks(): any[] {
+    return memoryTasks;
+  },
+
+  addTask(task: any): any {
+    const newTask = {
+      id: task.id || `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: task.title,
+      category: task.category || 'Development',
+      zone: task.zone || 'Workstation Utama',
+      assignedTo: task.assignedTo || 'Tim Kolaborasi',
+      completed: Boolean(task.completed),
+      createdAt: task.createdAt || new Date().toISOString(),
+    };
+    memoryTasks.unshift(newTask);
+    this.addAuditLog('bracket', 'TASK_CREATED', task.assignedTo || 'User', `Tugas baru ditambahkan: ${newTask.title}`);
+    return newTask;
+  },
+
+  toggleTask(taskId: string): any {
+    const t = memoryTasks.find((item) => item.id === taskId);
+    if (t) {
+      t.completed = !t.completed;
+      this.addAuditLog('bracket', 'TASK_TOGGLED', 'User', `Status tugas "${t.title}" diubah: ${t.completed ? 'SELESAI' : 'BELUM'}`);
+      return t;
+    }
+    return null;
+  },
+
+  deleteTask(taskId: string): boolean {
+    const idx = memoryTasks.findIndex((item) => item.id === taskId);
+    if (idx !== -1) {
+      const removed = memoryTasks.splice(idx, 1)[0];
+      this.addAuditLog('bracket', 'TASK_DELETED', 'User', `Tugas dihapus: ${removed.title}`);
+      return true;
+    }
+    return false;
   },
 
   getSystemOverview() {
