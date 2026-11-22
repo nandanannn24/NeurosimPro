@@ -462,3 +462,26 @@ INSERT INTO `users` (`id`, `org_id`, `role_id`, `username`, `email`, `password_h
 (2, 1, 3, 'manager', 'manager@neurosimpro.com', '$2b$10$wI5f67B8rQ5qD15O7U5Rce3X9lZ5P4s7T2wQ8X0rB7kL4mJ3p1eZa', 'Operations Lead', 'Team Manager', 'Engineering & Delivery', '/assets/characters/resident/standing/south.png'),
 (3, 1, 4, 'employee', 'employee@neurosimpro.com', '$2b$10$wI5f67B8rQ5qD15O7U5Rce3X9lZ5P4s7T2wQ8X0rB7kL4mJ3p1eZa', 'Team Engineer', 'Software Engineer', 'Frontend & Simulation', '/assets/characters/resident/standing/south.png')
 ON DUPLICATE KEY UPDATE `full_name`=VALUES(`full_name`);
+
+-- -----------------------------------------------------------------------------
+-- 15. Table: office_tasks (Realtime Shared Agenda & Tasks)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `office_tasks` (
+  `id` VARCHAR(64) PRIMARY KEY,
+  `bracket_id` VARCHAR(32) DEFAULT 'LOBBY-01',
+  `title` VARCHAR(255) NOT NULL,
+  `category` VARCHAR(64) NOT NULL DEFAULT 'Development',
+  `zone` VARCHAR(128) NOT NULL DEFAULT 'Workstation Utama',
+  `assigned_to` VARCHAR(128) NOT NULL DEFAULT 'Tim Kolaborasi',
+  `completed` BOOLEAN DEFAULT FALSE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_tasks_bracket` (`bracket_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `office_tasks` (`id`, `bracket_id`, `title`, `category`, `zone`, `assigned_to`, `completed`) VALUES
+('task-1', 'LOBBY-01', 'Daily Standup & Sync Tim Remote', 'Meeting', 'Ruang Rapat Utama', 'Seluruh Tim', TRUE),
+('task-2', 'LOBBY-01', 'Review Desain UI & Layout Kantor 2D', 'Development', 'Workstation Utama', 'Product Team', FALSE),
+('task-3', 'LOBBY-01', 'Sesi Kolaborasi & Presentasi Klien Luar', 'Collaboration', 'Ruang Konferensi Virtual', 'Lead Project', FALSE),
+('task-4', 'LOBBY-01', 'Verifikasi Billing Session & Server Bracket', 'Operations', 'Ruang Pimpinan Eksekutif', 'Super Admin', FALSE)
+ON DUPLICATE KEY UPDATE `title`=VALUES(`title`);

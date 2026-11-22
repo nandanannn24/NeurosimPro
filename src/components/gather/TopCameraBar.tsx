@@ -10,6 +10,7 @@ import {
   Users,
 } from 'lucide-react';
 import { PlayerPresence } from '../../types/multiplayer';
+import { webrtcService } from '../../services/webrtc.service';
 
 interface Props {
   isCamOn: boolean;
@@ -20,6 +21,81 @@ interface Props {
   userAvatar?: string;
   remotePlayers: PlayerPresence[];
 }
+
+const RemoteCameraTile: React.FC<{ remote: PlayerPresence }> = ({ remote }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasStream, setHasStream] = useState(false);
+
+  useEffect(() => {
+    const existingStream = webrtcService.getRemoteStream(remote.socketId);
+    if (existingStream && videoRef.current) {
+      videoRef.current.srcObject = existingStream;
+      videoRef.current.play().catch(console.warn);
+      setHasStream(true);
+    }
+
+    const unsub = webrtcService.onStream(({ socketId, stream: s }) => {
+      if (socketId === remote.socketId && videoRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.play().catch(console.warn);
+        setHasStream(true);
+      }
+    });
+
+    const unsubRemoved = webrtcService.onStreamRemoved((socketId) => {
+      if (socketId === remote.socketId) {
+        if (videoRef.current) videoRef.current.srcObject = null;
+        setHasStream(false);
+      }
+    });
+
+    return () => {
+      unsub();
+      unsubRemoved();
+    };
+  }, [remote.socketId]);
+
+  return (
+    <div className="relative w-36 h-24 sm:w-44 sm:h-28 rounded-xl overflow-hidden bg-black/90 border border-teal/40 flex-shrink-0 shadow-sm group flex items-center justify-center">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        className={`w-full h-full object-cover ${hasStream ? 'block' : 'hidden'}`}
+      />
+      {!hasStream && (
+        <div className="w-full h-full bg-[#1e293b] flex flex-col items-center justify-center p-2 text-center">
+          <div className="w-10 h-10 rounded-full bg-teal/20 border border-teal/50 overflow-hidden mb-1 flex items-center justify-center">
+            <img
+              src={remote.avatar || '/assets/characters/resident/standing/south.png'}
+              alt={remote.fullName}
+              className="w-full h-full object-contain pixelated scale-125"
+            />
+          </div>
+          <span className="text-[10px] font-bold text-soft truncate max-w-[120px]">
+            {remote.fullName || remote.username}
+          </span>
+        </div>
+      )}
+
+      {/* Remote Participant Nametag & Mic Status */}
+      <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between text-[10px] bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-md text-soft font-bold">
+        <span className="truncate max-w-[100px]">{remote.fullName.split(' ')[0] || remote.username}</span>
+        <div>
+          {remote.mediaState?.isMicOn ? (
+            <Mic className="w-3 h-3 text-emerald-400" />
+          ) : (
+            <MicOff className="w-3 h-3 text-red-400" />
+          )}
+        </div>
+      </div>
+
+      <div className="absolute top-1.5 right-1.5">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse block" />
+      </div>
+    </div>
+  );
+};
 
 export const TopCameraBar: React.FC<Props> = ({
   isCamOn,
@@ -145,40 +221,7 @@ export const TopCameraBar: React.FC<Props> = ({
 
             {/* 2. Remote Players With Active Camera */}
             {activeRemoteCams.map((remote) => (
-              <div
-                key={remote.socketId}
-                className="relative w-36 h-24 sm:w-44 sm:h-28 rounded-xl overflow-hidden bg-black/90 border border-teal/40 flex-shrink-0 shadow-sm group flex items-center justify-center"
-              >
-                {/* Fallback stylized avatar video simulator or WebRTC stream */}
-                <div className="w-full h-full bg-[#1e293b] flex flex-col items-center justify-center p-2 text-center">
-                  <div className="w-10 h-10 rounded-full bg-teal/20 border border-teal/50 overflow-hidden mb-1 flex items-center justify-center">
-                    <img
-                      src={remote.avatar || '/assets/characters/resident/standing/south.png'}
-                      alt={remote.fullName}
-                      className="w-full h-full object-contain pixelated scale-125"
-                    />
-                  </div>
-                  <span className="text-[10px] font-bold text-soft truncate max-w-[120px]">
-                    {remote.fullName || remote.username}
-                  </span>
-                </div>
-
-                {/* Remote Participant Nametag & Mic Status */}
-                <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between text-[10px] bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-md text-soft font-bold">
-                  <span className="truncate max-w-[100px]">{remote.fullName.split(' ')[0] || remote.username}</span>
-                  <div>
-                    {remote.mediaState?.isMicOn ? (
-                      <Mic className="w-3 h-3 text-emerald-400" />
-                    ) : (
-                      <MicOff className="w-3 h-3 text-red-400" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="absolute top-1.5 right-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse block" />
-                </div>
-              </div>
+              <RemoteCameraTile key={remote.socketId} remote={remote} />
             ))}
 
             {/* Minimize Button */}

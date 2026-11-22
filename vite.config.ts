@@ -18,15 +18,12 @@ const isSslEnabled = process.env.VITE_SSL !== 'false' && process.env.ENABLE_SSL 
  * Memungkinkan pemanggilan /api/* dan koneksi WebSocket (Socket.IO) berjalan langsung
  * di server Vite (port 3000) tanpa perlu menjalankan server Express terpisah.
  */
-function neurosimApiPlugin(): Plugin {
-  return {
-    name: 'neurosim-api-plugin',
-    configureServer(server) {
-      if (server.httpServer) {
-        setupRealtimeSocketIO(server.httpServer);
-      }
+function setupServerMiddlewares(server: any) {
+  if (server.httpServer) {
+    setupRealtimeSocketIO(server.httpServer);
+  }
 
-      server.middlewares.use(async (req, res, next) => {
+  server.middlewares.use(async (req: any, res: any, next: any) => {
         const url = req.url?.split('?')[0];
 
         // Optimasi Performa: Cache-Control agresif untuk aset statis game agar website sangat ringan
@@ -715,7 +712,13 @@ Ada yang ingin kamu ketahui lebih lanjut?`;
 
         next();
       });
-    },
+    }
+
+function neurosimApiPlugin(): Plugin {
+  return {
+    name: 'neurosim-api-plugin',
+    configureServer: setupServerMiddlewares,
+    configurePreviewServer: setupServerMiddlewares,
   };
 }
 

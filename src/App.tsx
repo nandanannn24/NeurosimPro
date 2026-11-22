@@ -45,6 +45,7 @@ import { meetingService } from './services/meeting.service';
 import { MeetingSession } from './types/meeting';
 import { ScreenShareWidget } from './components/gather/ScreenShareWidget';
 import { multiplayerService } from './services/multiplayer.service';
+import { webrtcService } from './services/webrtc.service';
 import { PlayerPresence, PlayerChatPacket } from './types/multiplayer';
 
 export type AppView = 'landing' | 'dashboard' | 'room-lobby' | 'simulation' | 'admin' | 'leader' | 'guest-lobby' | 'enter-office';
@@ -515,6 +516,25 @@ export const App: React.FC = () => {
       }
     }
   }, [onlineRemotePlayers, viewingRemotePresenter]);
+
+  // Sinkronisasi otomatis stream media lokal & inisialisasi koneksi WebRTC ke remote peers
+  useEffect(() => {
+    if (isCamOn || isMicOn) {
+      webrtcService
+        .getOrCreateLocalStream(isCamOn, isMicOn)
+        .then(() => {
+          webrtcService.setVideoEnabled(isCamOn);
+          webrtcService.setAudioEnabled(isMicOn);
+          for (const p of onlineRemotePlayers) {
+            webrtcService.connectToPeer(p.socketId, true).catch(console.warn);
+          }
+        })
+        .catch((err) => console.warn('[WebRTC] Stream inisialisasi:', err));
+    } else {
+      webrtcService.setVideoEnabled(false);
+      webrtcService.setAudioEnabled(false);
+    }
+  }, [isCamOn, isMicOn, onlineRemotePlayers]);
 
 
 

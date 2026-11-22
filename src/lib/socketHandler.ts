@@ -306,7 +306,7 @@ export function setupRealtimeSocketIO(httpServer: HTTPServer): SocketIOServer {
         const roomPlayers = rooms.get(currentRoomId)!;
         roomPlayers.delete(socket.id);
         lobbyStore.updateOnlineCount(currentRoomId, roomPlayers.size);
-        socket.to(currentRoomId).emit('s:player_left', { socketId: socket.id });
+        io.to(currentRoomId).emit('s:player_left', { socketId: socket.id });
         console.log(`[Socket.IO] Socket ${socket.id} keluar dari room: ${currentRoomId} (${roomPlayers.size} tersisa)`);
         if (roomPlayers.size === 0) {
           rooms.delete(currentRoomId);

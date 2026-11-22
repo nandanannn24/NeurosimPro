@@ -28,11 +28,28 @@ class WebRTCService {
   private isSpeaking: boolean = false;
   private unsubSignal: (() => void) | null = null;
 
-  private readonly iceServers: RTCIceServer[] = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ];
+  private getIceServers(): RTCIceServer[] {
+    const servers: RTCIceServer[] = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+    ];
+
+    // Dukungan TURN server untuk Symmetric NAT & jaringan seluler lintas ISP
+    const turnUrl = typeof window !== 'undefined' ? (import.meta.env.VITE_TURN_SERVER_URL || (window as any).__TURN_SERVER_URL__) : null;
+    const turnUsername = typeof window !== 'undefined' ? (import.meta.env.VITE_TURN_USERNAME || (window as any).__TURN_USERNAME__) : null;
+    const turnCredential = typeof window !== 'undefined' ? (import.meta.env.VITE_TURN_CREDENTIAL || (window as any).__TURN_CREDENTIAL__) : null;
+
+    if (turnUrl) {
+      servers.push({
+        urls: turnUrl,
+        username: turnUsername || undefined,
+        credential: turnCredential || undefined,
+      });
+    }
+
+    return servers;
+  }
 
   constructor() {
     this.setupSignalListener();
@@ -268,7 +285,7 @@ class WebRTCService {
     }
 
     const pc = new RTCPeerConnection({
-      iceServers: this.iceServers,
+      iceServers: this.getIceServers(),
     });
     this.peerConnections.set(targetSocketId, pc);
 

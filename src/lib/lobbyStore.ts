@@ -814,6 +814,24 @@ export const lobbyStore = {
           details: lg.details,
         }));
       }
+
+      // 7. Office Tasks & Agenda
+      try {
+        const [taskRows]: any = await pool.query('SELECT id, bracket_id as bracketId, title, category, zone, assigned_to as assignedTo, completed, created_at as createdAt FROM office_tasks ORDER BY created_at DESC');
+        if (taskRows && taskRows.length > 0) {
+          memoryTasks = taskRows.map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            category: t.category,
+            zone: t.zone,
+            assignedTo: t.assignedTo,
+            completed: Boolean(t.completed),
+            createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date(t.createdAt).toISOString(),
+          }));
+        }
+      } catch (e) {
+        // Table may not yet be initialized in MySQL
+      }
     } catch (err) {
       console.warn('[lobbyStore DB Sync Error]:', err);
     }
@@ -1381,6 +1399,15 @@ export const lobbyStore = {
     };
     memoryTasks.unshift(newTask);
     this.addAuditLog('bracket', 'TASK_CREATED', task.assignedTo || 'User', `Tugas baru ditambahkan: ${newTask.title}`);
+
+    // Sinkronisasi otomatis ke tabel database MySQL jika database aktif
+    const pool = getDbPool();
+    if (pool) {
+      pool.query(
+        'INSERT INTO office_tasks (id, bracket_id, title, category, zone, assigned_to, completed) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=?, completed=?',
+        [newTask.id, 'LOBBY-01', newTask.title, newTask.category, newTask.zone, newTask.assignedTo, newTask.completed, newTask.title, newTask.completed]
+      ).catch((err: any) => console.warn('[DB Task Insert Warning]:', err.message));
+    }
     return newTask;
   },
 
@@ -1389,6 +1416,11 @@ export const lobbyStore = {
     if (t) {
       t.completed = !t.completed;
       this.addAuditLog('bracket', 'TASK_TOGGLED', 'User', `Status tugas "${t.title}" diubah: ${t.completed ? 'SELESAI' : 'BELUM'}`);
+      const pool = getDbPool();
+      if (pool) {
+        pool.query('UPDATE office_tasks SET completed = ? WHERE id = ?', [t.completed, t.id])
+          .catch((err: any) => console.warn('[DB Task Toggle Warning]:', err.message));
+      }
       return t;
     }
     return null;
@@ -1399,6 +1431,11 @@ export const lobbyStore = {
     if (idx !== -1) {
       const removed = memoryTasks.splice(idx, 1)[0];
       this.addAuditLog('bracket', 'TASK_DELETED', 'User', `Tugas dihapus: ${removed.title}`);
+      const pool = getDbPool();
+      if (pool) {
+        pool.query('DELETE FROM office_tasks WHERE id = ?', [removed.id])
+          .catch((err: any) => console.warn('[DB Task Delete Warning]:', err.message));
+      }
       return true;
     }
     return false;

@@ -224,8 +224,9 @@ export async function processLogin(body: LoginRequestBody): Promise<LoginRespons
     }
   }
 
-  // Fallback Enterprise Demo Accounts
-  const demo = ENTERPRISE_DEMO_ACCOUNTS[identifier];
+  // Fallback Enterprise Demo Accounts (Aman: hanya aktif jika bukan produksi atau jika ALLOW_DEMO_ACCOUNTS=true)
+  const isDemoAllowed = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEMO_ACCOUNTS === 'true';
+  const demo = isDemoAllowed ? ENTERPRISE_DEMO_ACCOUNTS[identifier] : undefined;
   if (demo && (password === demo.pass || password === 'admin123' || password === 'password123')) {
     const token = signJwt({
       id: demo.user.id,
