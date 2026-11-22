@@ -46,6 +46,14 @@ export const AdminDashboardView: React.FC<Props> = ({
   onOpenAuth,
   onEnterRoom,
 }) => {
+  const getAdminHeaders = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('neurosim_auth_token') : null;
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'companies' | 'billing' | 'logs' | 'access-codes'>('overview');
   const [overview, setOverview] = useState<any>(null);
   const [lobbies, setLobbies] = useState<LobbyBracket[]>([]);
@@ -148,7 +156,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/admin/billing/generate-key', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ prefix }),
       });
       const data = await res.json();
@@ -167,7 +175,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/admin/users/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify(newUser),
       });
       const data = await res.json();
@@ -198,7 +206,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/admin/users/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ id: userId, isActive: !currentActive }),
       });
       const data = await res.json();
@@ -217,7 +225,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/access-codes/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           companyId: newCodeData.companyId,
           role: newCodeData.role,
@@ -244,7 +252,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/access-codes/toggle', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ codeId, isActive: !currentActive }),
       });
       const data = await res.json();
@@ -262,7 +270,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/admin/billing/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           companyName: newSession.companyName,
           plan: newSession.plan,
@@ -298,7 +306,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/admin/companies/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify(editingCompany),
       });
       const data = await res.json();
@@ -316,7 +324,7 @@ export const AdminDashboardView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/admin/billing/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           lobbyId: lobby.id,
           isLocked: !lobby.isLocked,

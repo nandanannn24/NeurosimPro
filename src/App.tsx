@@ -1196,7 +1196,7 @@ export const App: React.FC = () => {
               )}
 
               {/* Zoom-like Top Camera Conference Strip (Non-blocking) */}
-              {currentView === 'simulation' && (
+              {currentView === 'simulation' && currentLobbyId !== 'LOBBY-PUBLIC' && (
                 <TopCameraBar
                   isCamOn={isCamOn}
                   isMicOn={isMicOn}
@@ -1336,6 +1336,9 @@ export const App: React.FC = () => {
                 onOpenCustomizer={() => setIsCustomizerOpen(true)}
                 onOpenMeeting={handleOpenVideoConference}
                 onOpenAiGuide={() => setIsAiGuideOpen(true)}
+                isGuest={!currentUser}
+                isLobbyGlobal={currentLobbyId === 'LOBBY-PUBLIC'}
+                onRequireAuth={handleRequireAuth}
               />
 
               {/* Slide-in Drawers */}
@@ -1408,12 +1411,16 @@ export const App: React.FC = () => {
       {/* Employee Auth & Profile Modal (MySQL Synced) */}
       <AuthModal
         isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
+        onClose={() => {
+          setIsAuthOpen(false);
+          setAuthRestrictionNotice(null);
+        }}
         currentUser={currentUser}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
         userHistory={userHistory}
         userAvatar={currentUser?.avatar}
+        restrictionNotice={authRestrictionNotice}
       />
 
       {/* Character / Player Customizer Modal (Universal LPC Format) */}
@@ -1423,7 +1430,8 @@ export const App: React.FC = () => {
         onClose={() => setIsAiGuideOpen(false)}
         onOpen={() => setIsAiGuideOpen(true)}
         currentRoomName={currentLobbyName}
-        isGuest={currentLobbyId === 'LOBBY-PUBLIC'}
+        isGuest={!currentUser || currentLobbyId === 'LOBBY-PUBLIC'}
+        onRequireAuth={handleRequireAuth}
       />
 
       <CharacterCustomizerModal

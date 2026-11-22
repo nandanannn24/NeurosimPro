@@ -81,6 +81,34 @@ function neurosimApiPlugin(): Plugin {
           return;
         }
 
+        // Security Guard: Autentikasi ketat JWT untuk seluruh endpoint /api/admin/*
+        if (url?.startsWith('/api/admin/')) {
+          const authHeader = req.headers['authorization'];
+          let token = '';
+          if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+          }
+          const { verifyJwt } = await import('./src/lib/jwt');
+          const check = verifyJwt(token);
+          const isSuper =
+            check.valid &&
+            (check.payload?.roleSlug === 'super_admin' ||
+              (check.payload?.username || '').toLowerCase() === 'nandzzz' ||
+              (check.payload?.username || '').toLowerCase() === 'admin');
+
+          if (!isSuper) {
+            res.statusCode = 403;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(
+              JSON.stringify({
+                success: false,
+                message: check.error || 'Akses ditolak: Endpoint ini memerlukan hak Super Administrator.',
+              })
+            );
+            return;
+          }
+        }
+
         // 3. Endpoint Admin Overview (Realtime System Stats)
         if (req.method === 'GET' && url === '/api/admin/overview') {
           try {
